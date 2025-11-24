@@ -1,0 +1,124 @@
+# See the dedicated "version" documentation section.
+version: "2"
+linters:
+  default: none
+  enable:
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - canonicalheader
+    - containedctx
+    - contextcheck
+    - copyloopvar
+    - cyclop
+    - decorder
+    - depguard
+    - dogsled
+    - dupl
+    - dupword
+    - durationcheck
+    - err113
+    - errcheck
+    - errchkjson
+    - errname
+    - errorlint
+    - exhaustive
+    - exhaustruct
+    - exptostd
+    - fatcontext
+    - forbidigo
+    - forcetypeassert
+    - funcorder
+    - funlen
+    - ginkgolinter
+    - gocheckcompilerdirectives
+    - gochecknoglobals
+    - gochecknoinits
+    - gochecksumtype
+    - gocognit
+    - goconst
+    - gocritic
+    - gocyclo
+    - godot
+    - godox
+    - goheader
+    - gomoddirectives
+    - gomodguard
+    - goprintffuncname
+    - gosec
+    - gosmopolitan
+    - govet
+    - grouper
+    - iface
+    - importas
+    - inamedparam
+    - ineffassign
+    - interfacebloat
+    - intrange
+    - loggercheck
+    - maintidx
+    - makezero
+    - mirror
+    - misspell
+    - mnd
+    - musttag
+    - nakedret
+    - nestif
+    - nilerr
+    - nilnesserr
+    - nilnil
+    - nlreturn
+    - noctx
+    - nolintlint
+    - nosprintfhostport
+    - paralleltest
+    - perfsprint
+    - prealloc
+    - predeclared
+    - promlinter
+    - protogetter
+    - reassign
+    - recvcheck
+    - revive
+    - rowserrcheck
+    - sloglint
+    - spancheck
+    - sqlclosecheck
+    - staticcheck
+    - tagalign
+    - tagliatelle
+    - testableexamples
+    - testifylint
+    - testpackage
+    - thelper
+    - tparallel
+    - unconvert
+    - unparam
+    - unused
+    - usestdlibvars
+    - usetesting
+    - wastedassign
+    - whitespace
+    - wsl_v5
+    - zerologlint
+  disable:
+    - ireturn
+    - nonamedreturns
+    - lll
+    - varnamelen
+    - wrapcheck
+  exclusions:
+    generated: lax
+    warn-unused: true
+    paths:
+      - "_test.go"
+  settings:
+    depguard:
+      # refer to https://golangci-lint.run/usage/linters/#depguard for guidance
+      rules:
+        main:
+          list-mode: lax
+          allow:
+            - $gostd
+            - github.com/angrifel/
