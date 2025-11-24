@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+
+echo "linting and testing. commit-message: $1"
+make lint && make test
