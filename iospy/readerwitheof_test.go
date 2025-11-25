@@ -44,7 +44,7 @@ func TestReadWithEOFError(t *testing.T) {
 
 		t.Run("specified error on eof", func(t *testing.T) {
 			reader := strings.NewReader("hello world")
-			customEOFErr := errors.New("unkown error")
+			customEOFErr := errors.New("unknown error")
 
 			wrappedReader := ReaderWithEOFError(reader, customEOFErr)
 
