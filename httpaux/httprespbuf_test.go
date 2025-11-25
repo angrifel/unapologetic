@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/angrifel/unapologetic/internal/assert"
 	"github.com/angrifel/unapologetic/ioaux"
 	"github.com/angrifel/unapologetic/iospy"
 )
@@ -49,32 +50,19 @@ func TestBufferResponse(t *testing.T) {
 			readCalls := readerWitness.(iospy.ReaderWitness).ObservedReadCalls()
 			closeCalls := closerWitness.(iospy.CloserWitness).ObservedCloseCalls()
 
-			if resp == nil {
-				t.Fatal("expected non-nil response")
-			}
-			if len(readCalls) <= 1 {
-				t.Errorf("expected more than 1 read call, got %d", len(readCalls))
-			}
-			if len(closeCalls) != 1 {
-				t.Errorf("expected 1 close call, got %d", len(closeCalls))
-			}
-			if readCalls[len(readCalls)-1].ResultErr != io.EOF {
-				t.Errorf("expected EOF, got %v", readCalls[len(readCalls)-1].ResultErr)
-			}
-			if closeCalls[0].ResultErr != nil {
-				t.Errorf("expected nil close error, got %v", closeCalls[0].ResultErr)
-			}
+			assert.NotEqual(t, nil, resp)
+			assert.Greater(t, len(readCalls), 1)
+			assert.Equal(t, 1, len(closeCalls))
+			assert.Equal(t, io.EOF, readCalls[len(readCalls)-1].ResultErr)
+			assert.Equal(t, nil, closeCalls[0].ResultErr)
 
 			bodyContent, bodyErr := io.ReadAll(resp.Body)
-			if bodyErr != nil {
-				t.Errorf("expected nil error, got %v", bodyErr)
-			}
-			if string(bodyContent) != "Hello, World!" {
-				t.Errorf("expected %q, got %q", "Hello, World!", string(bodyContent))
-			}
-			if err := resp.Body.Close(); err != nil {
-				t.Errorf("expected nil error, got %v", err)
-			}
+
+			assert.Equal(t, nil, bodyErr)
+			assert.Equal(t, "Hello, World!", string(bodyContent))
+			closeErr := resp.Body.Close()
+
+			assert.Equal(t, nil, closeErr)
 		})
 
 		t.Run("with read error and no close error", func(t *testing.T) {
@@ -107,32 +95,19 @@ func TestBufferResponse(t *testing.T) {
 			readCalls := readerWitness.(iospy.ReaderWitness).ObservedReadCalls()
 			closeCalls := closerWitness.(iospy.CloserWitness).ObservedCloseCalls()
 
-			if resp == nil {
-				t.Fatal("expected non-nil response")
-			}
-			if len(readCalls) <= 1 {
-				t.Errorf("expected more than 1 read call, got %d", len(readCalls))
-			}
-			if len(closeCalls) != 1 {
-				t.Errorf("expected 1 close call, got %d", len(closeCalls))
-			}
-			if readCalls[len(readCalls)-1].ResultErr != errAtEOF {
-				t.Errorf("expected error %v, got %v", errAtEOF, readCalls[len(readCalls)-1].ResultErr)
-			}
-			if closeCalls[0].ResultErr != nil {
-				t.Errorf("expected nil close error, got %v", closeCalls[0].ResultErr)
-			}
+			assert.NotEqual(t, nil, resp)
+			assert.Greater(t, len(readCalls), 1)
+			assert.Equal(t, 1, len(closeCalls))
+			assert.Equal(t, errAtEOF, readCalls[len(readCalls)-1].ResultErr)
+			assert.Equal(t, nil, closeCalls[0].ResultErr)
 
 			bodyContent, bodyErr := io.ReadAll(resp.Body)
-			if bodyErr != errAtEOF {
-				t.Errorf("expected error %v, got %v", errAtEOF, bodyErr)
-			}
-			if string(bodyContent) != "Hello, World!" {
-				t.Errorf("expected %q, got %q", "Hello, World!", string(bodyContent))
-			}
-			if err := resp.Body.Close(); err != nil {
-				t.Errorf("expected nil error, got %v", err)
-			}
+			assert.Equal(t, errAtEOF, bodyErr)
+
+			assert.Equal(t, "Hello, World!", string(bodyContent))
+
+			closeErr := resp.Body.Close()
+			assert.Equal(t, nil, closeErr)
 		})
 
 		t.Run("with no read error but close error", func(t *testing.T) {
@@ -172,32 +147,17 @@ func TestBufferResponse(t *testing.T) {
 			readCalls := readerWitness.(iospy.ReaderWitness).ObservedReadCalls()
 			closeCalls := closerWitness.(iospy.CloserWitness).ObservedCloseCalls()
 
-			if resp == nil {
-				t.Fatal("expected non-nil response")
-			}
-			if len(readCalls) <= 1 {
-				t.Errorf("expected more than 1 read call, got %d", len(readCalls))
-			}
-			if len(closeCalls) != 1 {
-				t.Errorf("expected 1 close call, got %d", len(closeCalls))
-			}
-			if readCalls[len(readCalls)-1].ResultErr != io.EOF {
-				t.Errorf("expected EOF, got %v", readCalls[len(readCalls)-1].ResultErr)
-			}
-			if closeCalls[0].ResultErr != cErr {
-				t.Errorf("expected error %v, got %v", cErr, closeCalls[0].ResultErr)
-			}
+			assert.NotEqual(t, nil, resp)
+			assert.Greater(t, len(readCalls), 1)
+			assert.Equal(t, 1, len(closeCalls))
+			assert.Equal(t, io.EOF, readCalls[len(readCalls)-1].ResultErr)
+			assert.Equal(t, cErr, closeCalls[0].ResultErr)
 
 			bodyContent, bodyErr := io.ReadAll(resp.Body)
-			if bodyErr != nil {
-				t.Errorf("expected nil error, got %v", bodyErr)
-			}
-			if string(bodyContent) != "Hello, World!" {
-				t.Errorf("expected %q, got %q", "Hello, World!", string(bodyContent))
-			}
-			if err := resp.Body.Close(); err != cErr {
-				t.Errorf("expected error %v, got %v", cErr, err)
-			}
+			assert.Equal(t, nil, bodyErr)
+			assert.Equal(t, "Hello, World!", string(bodyContent))
+			closeErr := resp.Body.Close()
+			assert.Equal(t, cErr, closeErr)
 		})
 
 		t.Run("with both read and close errors", func(t *testing.T) {

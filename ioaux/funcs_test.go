@@ -6,6 +6,8 @@ import (
 	"io"
 	"strconv"
 	"testing"
+
+	"github.com/angrifel/unapologetic/internal/assert"
 )
 
 func TestReaderFunc(t *testing.T) {
@@ -62,12 +64,8 @@ func TestReaderFunc(t *testing.T) {
 			br, err := rf.Read(tc.p)
 
 			// assert
-			if br != tc.bytesRead {
-				t.Errorf("expected %d bytes read, got %d", tc.bytesRead, br)
-			}
-			if err != tc.err {
-				t.Errorf("expected error %v, got %v", tc.err, err)
-			}
+			assert.Equal(t, tc.bytesRead, br)
+			assert.Equal(t, tc.err, err)
 			if !bytes.Equal(pSnapshot[br:], tc.p[br:]) {
 				t.Errorf("expected buffer tail %v, got %v", pSnapshot[br:], tc.p[br:])
 			}
@@ -103,9 +101,7 @@ func TestCloserFunc(t *testing.T) {
 			err := cf.Close()
 
 			// assert
-			if err != tc.err {
-				t.Errorf("expected error %v, got %v", tc.err, err)
-			}
+			assert.Equal(t, tc.err, err)
 		})
 	}
 }

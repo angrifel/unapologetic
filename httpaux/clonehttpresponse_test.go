@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/angrifel/unapologetic/internal/assert"
 )
 
 func TestCloneHTTPResponseWithSameBody(t *testing.T) {
@@ -31,48 +33,24 @@ func TestCloneHTTPResponseWithDifferentBody(t *testing.T) {
 }
 
 func assertCloneHTTPResponseWithBody(t *testing.T, response *http.Response, replacementBody io.ReadCloser, clonedResponse *http.Response) {
-	if response == clonedResponse {
-		t.Error("expected cloned response to be a different instance")
-	}
+	assert.NotEqual(t, response, clonedResponse)
 	if replacementBody != response.Body {
-		if response.Body == clonedResponse.Body {
-			t.Error("expected cloned response body to be a different instance")
-		}
+		assert.NotEqual(t, response.Body, clonedResponse.Body)
 	} else {
-		if response.Body != clonedResponse.Body {
-			t.Error("expected cloned response body to be the same instance")
-		}
+		assert.Equal(t, response.Body, clonedResponse.Body)
 	}
-	if response.Status != clonedResponse.Status {
-		t.Errorf("Status: expected %v, got %v", response.Status, clonedResponse.Status)
-	}
-	if response.StatusCode != clonedResponse.StatusCode {
-		t.Errorf("StatusCode: expected %v, got %v", response.StatusCode, clonedResponse.StatusCode)
-	}
-	if response.Proto != clonedResponse.Proto {
-		t.Errorf("Proto: expected %v, got %v", response.Proto, clonedResponse.Proto)
-	}
-	if response.ProtoMajor != clonedResponse.ProtoMajor {
-		t.Errorf("ProtoMajor: expected %v, got %v", response.ProtoMajor, clonedResponse.ProtoMajor)
-	}
-	if response.ProtoMinor != clonedResponse.ProtoMinor {
-		t.Errorf("ProtoMinor: expected %v, got %v", response.ProtoMinor, clonedResponse.ProtoMinor)
-	}
-	if response.ContentLength != clonedResponse.ContentLength {
-		t.Errorf("ContentLength: expected %v, got %v", response.ContentLength, clonedResponse.ContentLength)
-	}
-	if response.Close != clonedResponse.Close {
-		t.Errorf("Close: expected %v, got %v", response.Close, clonedResponse.Close)
-	}
-	if response.Uncompressed != clonedResponse.Uncompressed {
-		t.Errorf("Uncompressed: expected %v, got %v", response.Uncompressed, clonedResponse.Uncompressed)
-	}
-	if response.Request != clonedResponse.Request {
-		t.Errorf("Request: expected %v, got %v", response.Request, clonedResponse.Request)
-	}
-	if response.TLS != clonedResponse.TLS {
-		t.Errorf("TLS: expected %v, got %v", response.TLS, clonedResponse.TLS)
-	}
+
+	assert.Equal(t, response.Status, clonedResponse.Status)
+	assert.Equal(t, response.StatusCode, clonedResponse.StatusCode)
+	assert.Equal(t, response.Proto, clonedResponse.Proto)
+	assert.Equal(t, response.ProtoMajor, clonedResponse.ProtoMajor)
+	assert.Equal(t, response.ProtoMinor, clonedResponse.ProtoMinor)
+	assert.Equal(t, response.ContentLength, clonedResponse.ContentLength)
+	assert.Equal(t, response.Close, clonedResponse.Close)
+	assert.Equal(t, response.Uncompressed, clonedResponse.Uncompressed)
+	assert.Equal(t, response.Request, clonedResponse.Request)
+	assert.Equal(t, response.TLS, clonedResponse.TLS)
+
 	if !maps.EqualFunc(response.Header, clonedResponse.Header, slices.Equal) {
 		t.Errorf("Header: expected %v, got %v", response.Header, clonedResponse.Header)
 	}
@@ -82,7 +60,6 @@ func assertCloneHTTPResponseWithBody(t *testing.T, response *http.Response, repl
 	if !slices.Equal(response.TransferEncoding, clonedResponse.TransferEncoding) {
 		t.Errorf("TransferEncoding: expected %v, got %v", response.TransferEncoding, clonedResponse.TransferEncoding)
 	}
-	if replacementBody != clonedResponse.Body {
-		t.Errorf("Body: expected replacement body, got %v", clonedResponse.Body)
-	}
+
+	assert.Equal(t, replacementBody, clonedResponse.Body)
 }

@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/angrifel/unapologetic/internal/assert"
 )
 
 func TestRoundTripperFunc(t *testing.T) {
@@ -24,9 +26,8 @@ func TestRoundTripperFunc(t *testing.T) {
 		called := false
 		rt := RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
 			called = true
-			if expectedRequest != req {
-				t.Errorf("expected request %v, got %v", expectedRequest, req)
-			}
+			assert.Equal(t, expectedRequest, req)
+
 			return expectedResponse, nil
 		})
 
@@ -34,15 +35,9 @@ func TestRoundTripperFunc(t *testing.T) {
 		actualResponse, err := rt.RoundTrip(expectedRequest)
 
 		// Assert
-		if !called {
-			t.Error("expected underlying function to be called")
-		}
-		if err != nil {
-			t.Errorf("expected no error, got %v", err)
-		}
-		if expectedResponse != actualResponse {
-			t.Errorf("expected response %v, got %v", expectedResponse, actualResponse)
-		}
+		assert.Equal(t, true, called)
+		assert.Equal(t, nil, err)
+		assert.Equal(t, expectedResponse, actualResponse)
 	})
 
 	t.Run("Returns error from the underlying function", func(t *testing.T) {
@@ -62,11 +57,7 @@ func TestRoundTripperFunc(t *testing.T) {
 		actualResponse, err := rt.RoundTrip(expectedRequest)
 
 		// Assert
-		if err != expectedError {
-			t.Errorf("expected error %v, got %v", expectedError, err)
-		}
-		if actualResponse != nil {
-			t.Errorf("expected nil response, got %v", actualResponse)
-		}
+		assert.Equal(t, expectedError, err)
+		assert.Equal(t, nil, actualResponse)
 	})
 }
