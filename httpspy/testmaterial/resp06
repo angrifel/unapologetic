@@ -1,0 +1,7 @@
+HTTP/1.1 200 OK
+Content-Length: 18
+Content-Type: text/plain
+X-Custom-Response: *** CENSORED ***
+X-Custom-Response: *** CENSORED ***
+
+test response body

@@ -1,0 +1,11 @@
+POST / HTTP/1.1
+Host: example.com
+Accept-Encoding: gzip
+Content-Length: 17
+Content-Type: text/plain
+User-Agent: Go-http-client/1.1
+X-Custom-Header: *** CENSORED ***
+X-Custom-Header: *** CENSORED ***
+X-Custom-Header: *** CENSORED ***
+
+test request body

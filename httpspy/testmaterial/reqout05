@@ -1,0 +1,9 @@
+POST / HTTP/1.1
+Host: example.com
+User-Agent: Go-http-client/1.1
+Content-Length: 17
+Authorization: 
+Content-Type: text/plain
+Accept-Encoding: gzip
+
+test request body
