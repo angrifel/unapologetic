@@ -1,3 +1,3 @@
 module github.com/angrifel/unapologetic
 
-go 1.24.10
+go 1.24.5
