@@ -12,6 +12,7 @@
 //
 // httpspy - HTTP message capture for debugging, logging, and testing:
 //   - Capture HTTP requests and responses with configurable header censoring
+//   - Trace HTTP round trips with connection timing metrics
 //   - Non-destructive snapshots that preserve original message state
 //
 // ioaux - I/O auxiliary utilities and adapters:

@@ -30,6 +30,7 @@ make run-github-action
 - **internal/assertfunctions** - Internal shared assertion function implementations used by assert and require
 - **internal/ioaux** - Internal I/O adapters: `ReaderFunc`/`CloserFunc` function adapters (internal counterpart of public ioaux)
 - **internal/require** - Internal test assertion helpers (for critical assertions)
+- **internal/netaux** - Network test utilities: embedded DNS server for resolver testing
 - **internal/testaux** - Internal test utilities
 
 Design principles: composable utilities, preserved error semantics, testability focus.
