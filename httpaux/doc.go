@@ -30,9 +30,9 @@
 // RoundTripperFunc allows using a function as an http.RoundTripper, similar to
 // how http.HandlerFunc works for handlers:
 //
-//	rt := httpaux.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
+//	roundTripper := httpaux.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
 //	    // Custom request handling
 //	    return &http.Response{StatusCode: 200}, nil
 //	})
-//	client := &http.Client{Transport: rt}
+//	client := &http.Client{Transport: roundTripper}
 package httpaux

@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptrace"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -76,7 +77,9 @@ type RoundTripTracer struct {
 	responseBodyReadError  atomic.Value
 	responseBodyCloseError atomic.Value
 	statusBits             atomic.Uint64
+	notificationMutex      sync.Mutex
 	notificationMask       TraceEvent
+	notificationStopMask   TraceEvent
 	notificationChan       chan<- RoundTripTracerStatus
 }
 
@@ -329,7 +332,20 @@ func (rtt *RoundTripTracer) updateStatusBitsAndNotify(flag TraceEvent) {
 	previous := rtt.statusBits.Or(uint64(flag))
 	updatedBits := previous | uint64(flag)
 
-	if (updatedBits&uint64(rtt.notificationMask)) != 0 && rtt.notificationChan != nil {
-		rtt.notificationChan <- rtt.Status()
+	rtt.notificationMutex.Lock()
+
+	c := rtt.notificationChan
+	shouldNotify := (updatedBits&uint64(rtt.notificationMask)) != 0 && c != nil
+
+	if rtt.notificationStopMask != 0 && rtt.notificationStopMask&flag != 0 {
+		rtt.notificationMask = 0
+		rtt.notificationChan = nil
+		rtt.notificationStopMask = 0
+	}
+
+	rtt.notificationMutex.Unlock()
+
+	if shouldNotify {
+		c <- rtt.Status()
 	}
 }
