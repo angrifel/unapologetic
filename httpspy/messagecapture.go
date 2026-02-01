@@ -7,90 +7,59 @@ import (
 	"slices"
 )
 
-// MessageCaptureConfiguration configures how HTTP messages are captured and stored.
-type MessageCaptureConfiguration struct {
-	// Enabled determines whether message capturing is active.
-	Enabled bool
-	// AttemptCollectBody determines whether to capture the message body.
-	AttemptCollectBody bool
-	// CensorHeaders is a list of header names whose values should be censored.
-	CensorHeaders []string
-	// HeaderCensorText is the replacement text for censored header values.
-	HeaderCensorText string
-}
-
-// NewRequestCaptureFunction creates a function that captures incoming HTTP requests.
-// If capturing is disabled, returns a function that returns empty snapshots.
-// If CensorHeaders is specified, the returned function will temporarily replace
-// those header values with HeaderCensorText during capture.
-func NewRequestCaptureFunction(conf MessageCaptureConfiguration) func(*http.Request) ([]byte, error) {
-	if !conf.Enabled {
-		return nilRequestCaptureFunction
-	}
-
-	if len(conf.CensorHeaders) == 0 {
+// RequestCaptureWithHeaderCensorshipFunction creates a function that captures incoming HTTP requests.
+// If headersToCensor is specified, the returned function will temporarily replace
+// those header values with censorText during capture.
+func RequestCaptureWithHeaderCensorshipFunction(attemptCollectBody bool, headersToCensor []string, censorText string) func(*http.Request) ([]byte, error) {
+	if len(headersToCensor) == 0 {
 		return func(request *http.Request) ([]byte, error) {
-			return httputil.DumpRequest(request, conf.AttemptCollectBody)
+			return httputil.DumpRequest(request, attemptCollectBody)
 		}
 	}
 
 	return func(request *http.Request) ([]byte, error) {
-		restoreHeadersFn := censorHeaders(request.Header, conf.CensorHeaders, conf.HeaderCensorText)
+		restoreHeadersFn := censorHeaders(request.Header, headersToCensor, censorText)
 		defer restoreHeadersFn()
 
-		return httputil.DumpRequest(request, conf.AttemptCollectBody)
+		return httputil.DumpRequest(request, attemptCollectBody)
 	}
 }
 
-// NewRequestOutCaptureFunction creates a function that captures outgoing HTTP requests.
-// If capturing is disabled, returns a function that returns empty snapshots.
-// If CensorHeaders is specified, the returned function will temporarily replace
-// those header values with HeaderCensorText during capture.
-func NewRequestOutCaptureFunction(conf MessageCaptureConfiguration) func(*http.Request) ([]byte, error) {
-	if !conf.Enabled {
-		return nilRequestCaptureFunction
-	}
-
-	if len(conf.CensorHeaders) == 0 {
+// RequestOutCaptureWithHeaderCensorshipFunction creates a function that captures outgoing HTTP requests.
+// If headersToCensor is specified, the returned function will temporarily replace
+// those header values with censorText during capture.
+func RequestOutCaptureWithHeaderCensorshipFunction(attemptCollectBody bool, headersToCensor []string, censorText string) func(*http.Request) ([]byte, error) {
+	if len(headersToCensor) == 0 {
 		return func(request *http.Request) ([]byte, error) {
-			return httputil.DumpRequestOut(request, conf.AttemptCollectBody)
+			return httputil.DumpRequestOut(request, attemptCollectBody)
 		}
 	}
 
 	return func(request *http.Request) ([]byte, error) {
-		restoreHeadersFn := censorHeaders(request.Header, conf.CensorHeaders, conf.HeaderCensorText)
+		restoreHeadersFn := censorHeaders(request.Header, headersToCensor, censorText)
 		defer restoreHeadersFn()
 
-		return httputil.DumpRequestOut(request, conf.AttemptCollectBody)
+		return httputil.DumpRequestOut(request, attemptCollectBody)
 	}
 }
 
-// NewResponseCaptureFunction creates a function that captures HTTP responses.
-// If capturing is disabled, returns a function that returns empty snapshots.
-// If CensorHeaders is specified, the returned function will temporarily replace
-// those header values with HeaderCensorText during capture.
-func NewResponseCaptureFunction(conf MessageCaptureConfiguration) func(*http.Response) ([]byte, error) {
-	if !conf.Enabled {
-		return nilResponseCaptureFunction
-	}
-
-	if len(conf.CensorHeaders) == 0 {
+// ResponseCaptureWithHeaderCensorshipFunction creates a function that captures HTTP responses.
+// If headersToCensor is specified, the returned function will temporarily replace
+// those header values with censorText during capture.
+func ResponseCaptureWithHeaderCensorshipFunction(attemptCollectBody bool, headersToCensor []string, censorText string) func(*http.Response) ([]byte, error) {
+	if len(headersToCensor) == 0 {
 		return func(response *http.Response) ([]byte, error) {
-			return httputil.DumpResponse(response, conf.AttemptCollectBody)
+			return httputil.DumpResponse(response, attemptCollectBody)
 		}
 	}
 
 	return func(response *http.Response) ([]byte, error) {
-		restoreHeadersFn := censorHeaders(response.Header, conf.CensorHeaders, conf.HeaderCensorText)
+		restoreHeadersFn := censorHeaders(response.Header, headersToCensor, censorText)
 		defer restoreHeadersFn()
 
-		return httputil.DumpResponse(response, conf.AttemptCollectBody)
+		return httputil.DumpResponse(response, attemptCollectBody)
 	}
 }
-
-func nilRequestCaptureFunction(_ *http.Request) ([]byte, error) { return nil, nil }
-
-func nilResponseCaptureFunction(_ *http.Response) ([]byte, error) { return nil, nil }
 
 func censorHeaders(header http.Header, censorHeader []string, censorText string) (restoreHeaders func()) {
 	var preservedHeaders = make(http.Header)

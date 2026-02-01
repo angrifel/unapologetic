@@ -16,11 +16,13 @@ import (
 //go:embed testmaterial/*
 var testMaterial embed.FS
 
-func TestNewRequestCaptureFunction(t *testing.T) {
+func TestRequestCaptureWithHeaderCensorshipFunction(t *testing.T) {
 	type testCase struct {
-		testFile string
-		conf     MessageCaptureConfiguration
-		req      *http.Request
+		testFile           string
+		attemptCollectBody bool
+		censorHeaders      []string
+		headerCensorText   string
+		req                *http.Request
 	}
 
 	newTestRequest := func(method, target string, body io.Reader, reqUpdate func(r *http.Request)) *http.Request {
@@ -36,9 +38,6 @@ func TestNewRequestCaptureFunction(t *testing.T) {
 		{
 			testFile: "testmaterial/req01",
 			req:      newTestRequest("GET", "https://example.com", nil, nil),
-			conf: MessageCaptureConfiguration{
-				Enabled: true,
-			},
 		},
 		{
 			testFile: "testmaterial/req02",
@@ -46,10 +45,7 @@ func TestNewRequestCaptureFunction(t *testing.T) {
 				r.Header.Set("x-Header-1", "value")
 				r.Header.Add("Other-header", "thiswillbecensored")
 			}),
-			conf: MessageCaptureConfiguration{
-				Enabled:       true,
-				CensorHeaders: []string{"other-header"},
-			},
+			censorHeaders: []string{"other-header"},
 		},
 		{
 			testFile: "testmaterial/req03",
@@ -59,21 +55,15 @@ func TestNewRequestCaptureFunction(t *testing.T) {
 				r.Header.Add("Other-header-Mv", "thiswillbecensored-2")
 				r.Header.Add("Other-header-Mv", "thiswillbecensored-3")
 			}),
-			conf: MessageCaptureConfiguration{
-				Enabled:          true,
-				CensorHeaders:    []string{"other-header-mv"},
-				HeaderCensorText: "*** CENSORED ***",
-			},
+			censorHeaders:    []string{"other-header-mv"},
+			headerCensorText: "*** CENSORED ***",
 		},
 		{
 			testFile: "testmaterial/req04",
 			req: newTestRequest("POST", "https://example.com", strings.NewReader("test request body"), func(r *http.Request) {
 				r.Header.Set("Content-Type", "text/plain")
 			}),
-			conf: MessageCaptureConfiguration{
-				Enabled:            true,
-				AttemptCollectBody: true,
-			},
+			attemptCollectBody: true,
 		},
 		{
 			testFile: "testmaterial/req05",
@@ -81,11 +71,8 @@ func TestNewRequestCaptureFunction(t *testing.T) {
 				r.Header.Set("Content-Type", "text/plain")
 				r.Header.Set("Authorization", "Bearer secret-token")
 			}),
-			conf: MessageCaptureConfiguration{
-				Enabled:            true,
-				AttemptCollectBody: true,
-				CensorHeaders:      []string{"authorization"},
-			},
+			attemptCollectBody: true,
+			censorHeaders:      []string{"authorization"},
 		},
 		{
 			testFile: "testmaterial/req06",
@@ -95,12 +82,9 @@ func TestNewRequestCaptureFunction(t *testing.T) {
 				r.Header.Add("X-Custom-Header", "value2")
 				r.Header.Add("X-Custom-Header", "value3")
 			}),
-			conf: MessageCaptureConfiguration{
-				Enabled:            true,
-				AttemptCollectBody: true,
-				CensorHeaders:      []string{"x-custom-header"},
-				HeaderCensorText:   "*** CENSORED ***",
-			},
+			attemptCollectBody: true,
+			censorHeaders:      []string{"x-custom-header"},
+			headerCensorText:   "*** CENSORED ***",
 		},
 	}
 
@@ -109,91 +93,53 @@ func TestNewRequestCaptureFunction(t *testing.T) {
 			// arrange
 			tcBodyBytes, tcBodyBytesErr := io.ReadAll(tc.req.Body)
 			_ = tcBodyBytesErr
+			expectedBytes, expectedBytesErr := testMaterial.ReadFile(tc.testFile)
+			if expectedBytesErr != nil {
+				t.Fatalf("Failed to read %s: %v", tc.testFile, expectedBytesErr)
+			}
 
-			t.Run("enabled", func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				// arrange
-				expectedBytes, expectedBytesErr := testMaterial.ReadFile(tc.testFile)
-				if expectedBytesErr != nil {
-					t.Fatalf("Failed to read %s: %v", tc.testFile, expectedBytesErr)
-				}
-
-				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					// arrange
-					headersBeforeCapture := r.Header.Clone()
-					tConf := tc.conf
-					tConf.Enabled = true
-					captureFunction := NewRequestCaptureFunction(tConf)
-
-					// act
-					requestBytes, requestErr := captureFunction(r)
-
-					// assert
-					assert.EqualFunc(t, headersBeforeCapture, r.Header, testaux.HeaderEqual)
-					assert.IsNil(t, requestErr)
-					assert.Equal(t, string(expectedBytes), string(requestBytes))
-
-					w.WriteHeader(http.StatusOK)
-				}))
-
-				t.Cleanup(server.Close)
-
-				host := server.URL[len("http://"):]
-				expectedBytes = bytes.ReplaceAll(expectedBytes, []byte("\r\nHost: example.com\r\n"), []byte("\r\nHost: "+host+"\r\n"))
-				assert.IsNil(t, testaux.WaitForConnectAccept(host))
-
-				req := httptest.NewRequestWithContext(t.Context(), tc.req.Method, server.URL, bytes.NewReader(tcBodyBytes))
-				req.RequestURI = ""
-				req.Header = tc.req.Header.Clone()
+				headersBeforeCapture := r.Header.Clone()
+				captureFunction := RequestCaptureWithHeaderCensorshipFunction(tc.attemptCollectBody, tc.censorHeaders, tc.headerCensorText)
 
 				// act
-				_, respErr := server.Client().Do(req)
+				requestBytes, requestErr := captureFunction(r)
 
 				// assert
-				assert.IsNil(t, respErr)
-			})
-			t.Run("disabled", func(t *testing.T) {
-				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					// arrange
-					headersBeforeCapture := r.Header.Clone()
-					tConf := tc.conf
-					tConf.Enabled = false
-					captureFunction := NewRequestCaptureFunction(tConf)
+				assert.EqualFunc(t, headersBeforeCapture, r.Header, testaux.HeaderEqual)
+				assert.IsNil(t, requestErr)
+				assert.Equal(t, string(expectedBytes), string(requestBytes))
 
-					// act
-					requestBytes, requestErr := captureFunction(r)
+				w.WriteHeader(http.StatusOK)
+			}))
 
-					// assert
-					assert.EqualFunc(t, headersBeforeCapture, r.Header, testaux.HeaderEqual)
-					assert.IsNil(t, requestErr)
-					assert.Equal(t, 0, len(requestBytes))
+			t.Cleanup(server.Close)
 
-					w.WriteHeader(http.StatusOK)
-				}))
+			host := server.URL[len("http://"):]
+			expectedBytes = bytes.ReplaceAll(expectedBytes, []byte("\r\nHost: example.com\r\n"), []byte("\r\nHost: "+host+"\r\n"))
+			assert.IsNil(t, testaux.WaitForConnectAccept(host))
 
-				t.Cleanup(server.Close)
+			req := httptest.NewRequestWithContext(t.Context(), tc.req.Method, server.URL, bytes.NewReader(tcBodyBytes))
+			req.RequestURI = ""
+			req.Header = tc.req.Header.Clone()
 
-				host := server.URL[len("http://"):]
-				assert.IsNil(t, testaux.WaitForConnectAccept(host))
+			// act
+			_, respErr := server.Client().Do(req)
 
-				req := httptest.NewRequestWithContext(t.Context(), tc.req.Method, server.URL, bytes.NewReader(tcBodyBytes))
-				req.RequestURI = ""
-				req.Header = tc.req.Header.Clone()
-
-				// act
-				_, respErr := server.Client().Do(req)
-
-				// assert
-				assert.IsNil(t, respErr)
-			})
+			// assert
+			assert.IsNil(t, respErr)
 		})
 	}
 }
 
-func TestNewRequestOutCaptureFunction(t *testing.T) {
+func TestRequestOutCaptureWithHeaderCensorshipFunction(t *testing.T) {
 	type testCase struct {
-		testFile string
-		conf     MessageCaptureConfiguration
-		req      *http.Request
+		testFile           string
+		attemptCollectBody bool
+		censorHeaders      []string
+		headerCensorText   string
+		req                *http.Request
 	}
 
 	newTestRequest := func(method, target string, body io.Reader, reqUpdate func(r *http.Request)) *http.Request {
@@ -209,9 +155,6 @@ func TestNewRequestOutCaptureFunction(t *testing.T) {
 		{
 			testFile: "testmaterial/reqout01",
 			req:      newTestRequest("GET", "https://example.com", nil, nil),
-			conf: MessageCaptureConfiguration{
-				Enabled: true,
-			},
 		},
 		{
 			testFile: "testmaterial/reqout02",
@@ -219,10 +162,7 @@ func TestNewRequestOutCaptureFunction(t *testing.T) {
 				r.Header.Set("x-Header-1", "value")
 				r.Header.Add("Other-header", "thiswillbecensored")
 			}),
-			conf: MessageCaptureConfiguration{
-				Enabled:       true,
-				CensorHeaders: []string{"other-header"},
-			},
+			censorHeaders: []string{"other-header"},
 		},
 		{
 			testFile: "testmaterial/reqout03",
@@ -232,21 +172,15 @@ func TestNewRequestOutCaptureFunction(t *testing.T) {
 				r.Header.Add("Other-header-Mv", "thiswillbecensored-2")
 				r.Header.Add("Other-header-Mv", "thiswillbecensored-3")
 			}),
-			conf: MessageCaptureConfiguration{
-				Enabled:          true,
-				CensorHeaders:    []string{"other-header-mv"},
-				HeaderCensorText: "*** CENSORED ***",
-			},
+			censorHeaders:    []string{"other-header-mv"},
+			headerCensorText: "*** CENSORED ***",
 		},
 		{
 			testFile: "testmaterial/reqout04",
 			req: newTestRequest("POST", "https://example.com", strings.NewReader("test request body"), func(r *http.Request) {
 				r.Header.Set("Content-Type", "text/plain")
 			}),
-			conf: MessageCaptureConfiguration{
-				Enabled:            true,
-				AttemptCollectBody: true,
-			},
+			attemptCollectBody: true,
 		},
 		{
 			testFile: "testmaterial/reqout05",
@@ -254,11 +188,8 @@ func TestNewRequestOutCaptureFunction(t *testing.T) {
 				r.Header.Set("Content-Type", "text/plain")
 				r.Header.Set("Authorization", "Bearer secret-token")
 			}),
-			conf: MessageCaptureConfiguration{
-				Enabled:            true,
-				AttemptCollectBody: true,
-				CensorHeaders:      []string{"authorization"},
-			},
+			attemptCollectBody: true,
+			censorHeaders:      []string{"authorization"},
 		},
 		{
 			testFile: "testmaterial/reqout06",
@@ -268,12 +199,9 @@ func TestNewRequestOutCaptureFunction(t *testing.T) {
 				r.Header.Add("X-Custom-Header", "value2")
 				r.Header.Add("X-Custom-Header", "value3")
 			}),
-			conf: MessageCaptureConfiguration{
-				Enabled:            true,
-				AttemptCollectBody: true,
-				CensorHeaders:      []string{"x-custom-header"},
-				HeaderCensorText:   "*** CENSORED ***",
-			},
+			attemptCollectBody: true,
+			censorHeaders:      []string{"x-custom-header"},
+			headerCensorText:   "*** CENSORED ***",
 		},
 	}
 
@@ -286,41 +214,26 @@ func TestNewRequestOutCaptureFunction(t *testing.T) {
 			}
 
 			headersBeforeCapture := tc.req.Header.Clone()
-			t.Run("enabled", func(t *testing.T) {
-				tConf := tc.conf
-				tConf.Enabled = true
-				captureFunction := NewRequestOutCaptureFunction(tConf)
+			captureFunction := RequestOutCaptureWithHeaderCensorshipFunction(tc.attemptCollectBody, tc.censorHeaders, tc.headerCensorText)
 
-				// act
-				requestBytes, requestErr := captureFunction(tc.req)
+			// act
+			requestBytes, requestErr := captureFunction(tc.req)
 
-				// assert
-				assert.EqualFunc(t, headersBeforeCapture, tc.req.Header, testaux.HeaderEqual)
-				assert.IsNil(t, requestErr)
-				assert.Equal(t, string(expectedBytes), string(requestBytes))
-			})
-			t.Run("disabled", func(t *testing.T) {
-				tConf := tc.conf
-				tConf.Enabled = false
-				captureFunction := NewRequestOutCaptureFunction(tConf)
-
-				// act
-				requestBytes, requestErr := captureFunction(tc.req)
-
-				// assert
-				assert.EqualFunc(t, headersBeforeCapture, tc.req.Header, testaux.HeaderEqual)
-				assert.IsNil(t, requestErr)
-				assert.Equal(t, 0, len(requestBytes))
-			})
+			// assert
+			assert.EqualFunc(t, headersBeforeCapture, tc.req.Header, testaux.HeaderEqual)
+			assert.IsNil(t, requestErr)
+			assert.Equal(t, string(expectedBytes), string(requestBytes))
 		})
 	}
 }
 
-func TestNewResponseCaptureFunction(t *testing.T) {
+func TestResponseCaptureWithHeaderCensorshipFunction(t *testing.T) {
 	type testCase struct {
-		testFile string
-		conf     MessageCaptureConfiguration
-		resp     *http.Response
+		testFile           string
+		attemptCollectBody bool
+		censorHeaders      []string
+		headerCensorText   string
+		resp               *http.Response
 	}
 
 	newTestResponse := func(body io.Reader, respUpdate func(r *http.Response)) *http.Response {
@@ -348,7 +261,6 @@ func TestNewResponseCaptureFunction(t *testing.T) {
 			resp: newTestResponse(http.NoBody, func(resp *http.Response) {
 				resp.Header = http.Header{"Content-Type": []string{"text/plain"}}
 			}),
-			conf: MessageCaptureConfiguration{},
 		},
 		{
 			testFile: "testmaterial/resp02",
@@ -358,9 +270,7 @@ func TestNewResponseCaptureFunction(t *testing.T) {
 					"Set-Cookie":   []string{"session=abc123; Path=/; HttpOnly"},
 				}
 			}),
-			conf: MessageCaptureConfiguration{
-				CensorHeaders: []string{"set-cookie"},
-			},
+			censorHeaders: []string{"set-cookie"},
 		},
 		{
 			testFile: "testmaterial/resp03",
@@ -370,10 +280,8 @@ func TestNewResponseCaptureFunction(t *testing.T) {
 					"X-Custom-Response": []string{"value1", "value2"},
 				}
 			}),
-			conf: MessageCaptureConfiguration{
-				CensorHeaders:    []string{"x-custom-response"},
-				HeaderCensorText: "*** CENSORED ***",
-			},
+			censorHeaders:    []string{"x-custom-response"},
+			headerCensorText: "*** CENSORED ***",
 		},
 		{
 			testFile: "testmaterial/resp04",
@@ -381,9 +289,7 @@ func TestNewResponseCaptureFunction(t *testing.T) {
 				resp.ContentLength = 18
 				resp.Header = http.Header{"Content-Type": []string{"text/plain"}}
 			}),
-			conf: MessageCaptureConfiguration{
-				AttemptCollectBody: true,
-			},
+			attemptCollectBody: true,
 		},
 		{
 			testFile: "testmaterial/resp05",
@@ -394,10 +300,8 @@ func TestNewResponseCaptureFunction(t *testing.T) {
 				}
 				resp.ContentLength = 18
 			}),
-			conf: MessageCaptureConfiguration{
-				AttemptCollectBody: true,
-				CensorHeaders:      []string{"set-cookie"},
-			},
+			attemptCollectBody: true,
+			censorHeaders:      []string{"set-cookie"},
 		},
 		{
 			testFile: "testmaterial/resp06",
@@ -408,11 +312,9 @@ func TestNewResponseCaptureFunction(t *testing.T) {
 				}
 				resp.ContentLength = 18
 			}),
-			conf: MessageCaptureConfiguration{
-				AttemptCollectBody: true,
-				CensorHeaders:      []string{"x-custom-response"},
-				HeaderCensorText:   "*** CENSORED ***",
-			},
+			attemptCollectBody: true,
+			censorHeaders:      []string{"x-custom-response"},
+			headerCensorText:   "*** CENSORED ***",
 		},
 	}
 
@@ -425,32 +327,15 @@ func TestNewResponseCaptureFunction(t *testing.T) {
 			}
 
 			headersBeforeCapture := tc.resp.Header.Clone()
-			t.Run("enabled", func(t *testing.T) {
-				tConf := tc.conf
-				tConf.Enabled = true
-				captureFunction := NewResponseCaptureFunction(tConf)
+			captureFunction := ResponseCaptureWithHeaderCensorshipFunction(tc.attemptCollectBody, tc.censorHeaders, tc.headerCensorText)
 
-				// act
-				responseBytes, requestErr := captureFunction(tc.resp)
+			// act
+			responseBytes, requestErr := captureFunction(tc.resp)
 
-				// assert
-				assert.EqualFunc(t, headersBeforeCapture, tc.resp.Header, testaux.HeaderEqual)
-				assert.IsNil(t, requestErr)
-				assert.Equal(t, string(expectedBytes), string(responseBytes))
-			})
-			t.Run("disabled", func(t *testing.T) {
-				tConf := tc.conf
-				tConf.Enabled = false
-				captureFunction := NewResponseCaptureFunction(tConf)
-
-				// act
-				responseBytes, requestErr := captureFunction(tc.resp)
-
-				// assert
-				assert.EqualFunc(t, headersBeforeCapture, tc.resp.Header, testaux.HeaderEqual)
-				assert.IsNil(t, requestErr)
-				assert.Equal(t, 0, len(responseBytes))
-			})
+			// assert
+			assert.EqualFunc(t, headersBeforeCapture, tc.resp.Header, testaux.HeaderEqual)
+			assert.IsNil(t, requestErr)
+			assert.Equal(t, string(expectedBytes), string(responseBytes))
 		})
 	}
 }

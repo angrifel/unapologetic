@@ -7,47 +7,47 @@
 //
 // # Key Features
 //
-//   - Capture incoming HTTP requests (http.Request) using NewRequestCaptureFunction
-//   - Capture outgoing HTTP requests with NewRequestOutCaptureFunction
-//   - Capture HTTP responses (http.Response) using NewResponseCaptureFunction
+//   - Capture incoming HTTP requests (http.Request) using RequestCaptureWithHeaderCensorshipFunction
+//   - Capture outgoing HTTP requests with RequestOutCaptureWithHeaderCensorshipFunction
+//   - Capture HTTP responses (http.Response) using ResponseCaptureWithHeaderCensorshipFunction
 //   - Selectively censor sensitive headers (e.g., Authorization, Set-Cookie)
 //   - Optionally capture message bodies
 //   - Non-destructive: headers are temporarily modified during capture then restored
 //
 // # Basic Usage
 //
-// Create a capture configuration and generate capture functions:
-//
-//	config := httpspy.MessageCaptureConfiguration{
-//	    Enabled:            true,
-//	    AttemptCollectBody: true,
-//	    CensorHeaders:      []string{"Authorization", "Cookie"},
-//	    HeaderCensorText:   "*** REDACTED ***",
-//	}
+// Generate capture functions with the desired options:
 //
 //	// For incoming requests (e.g., in HTTP handlers)
-//	captureRequest := httpspy.NewRequestCaptureFunction(config)
+//	captureRequest := httpspy.RequestCaptureWithHeaderCensorshipFunction(
+//	    true,                                        // attemptCollectBody
+//	    []string{"Authorization", "Cookie"},         // headersToCensor
+//	    "*** REDACTED ***",                          // censorText
+//	)
 //	snapshot, err := captureRequest(req)
 //
 //	// For outgoing requests (e.g., in HTTP clients)
-//	captureRequestOut := httpspy.NewRequestOutCaptureFunction(config)
+//	captureRequestOut := httpspy.RequestOutCaptureWithHeaderCensorshipFunction(
+//	    true,                                        // attemptCollectBody
+//	    []string{"Authorization", "Cookie"},         // headersToCensor
+//	    "*** REDACTED ***",                          // censorText
+//	)
 //	snapshot, err := captureRequestOut(req)
 //
 //	// For responses
-//	captureResponse := httpspy.NewResponseCaptureFunction(config)
+//	captureResponse := httpspy.ResponseCaptureWithHeaderCensorshipFunction(
+//	    true,                                        // attemptCollectBody
+//	    []string{"Set-Cookie"},                      // headersToCensor
+//	    "*** REDACTED ***",                          // censorText
+//	)
 //	snapshot, err := captureResponse(resp)
 //
 // # Header Censoring
 //
-// When CensorHeaders is specified, the capture functions will temporarily replace
-// the values of specified headers with HeaderCensorText during the snapshot operation,
-// then restore the original values. This ensures sensitive data is not included in
-// captured snapshots while keeping the actual HTTP message intact.
+// When headersToCensor is specified, the capture functions will temporarily replace
+// the values of specified headers with censorText during the snapshot operation,
+// then restore the original values. This ensures sensitive data in the headers is not
+// included in captured snapshots while keeping the actual HTTP message intact.
 //
 // Header names are case-insensitive (following HTTP standards).
-//
-// # Disabling Capture
-//
-// When Enabled is false, the capture functions return nil snapshots without any
-// overhead, making it easy to toggle capture on/off at runtime.
 package httpspy
