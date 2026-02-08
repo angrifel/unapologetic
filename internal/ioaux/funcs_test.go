@@ -66,9 +66,7 @@ func TestReaderFunc(t *testing.T) {
 			// assert
 			assert.Equal(t, tc.bytesRead, br)
 			assert.Equal(t, tc.err, err)
-			if !bytes.Equal(pSnapshot[br:], tc.p[br:]) {
-				t.Errorf("expected buffer tail %v, got %v", pSnapshot[br:], tc.p[br:])
-			}
+			assert.EqualFunc(t, pSnapshot[br:], tc.p[br:], bytes.Equal)
 		})
 	}
 }

@@ -8,15 +8,14 @@ import (
 	"testing"
 
 	"github.com/angrifel/unapologetic/internal/assert"
+	"github.com/angrifel/unapologetic/internal/require"
 )
 
 func TestRoundTripperFunc(t *testing.T) {
 	t.Run("Forwards the request to the underlying function", func(t *testing.T) {
 		// Arrange
 		expectedRequest, err := http.NewRequest(http.MethodGet, "https://example.com", nil)
-		if err != nil {
-			t.Fatalf("failed to create request: %v", err)
-		}
+		require.IsNil(t, err)
 
 		expectedResponse := &http.Response{
 			StatusCode: http.StatusOK,
@@ -43,9 +42,7 @@ func TestRoundTripperFunc(t *testing.T) {
 	t.Run("Returns error from the underlying function", func(t *testing.T) {
 		// Arrange
 		expectedRequest, err := http.NewRequest(http.MethodGet, "https://example.com", nil)
-		if err != nil {
-			t.Fatalf("failed to create request: %v", err)
-		}
+		require.IsNil(t, err)
 
 		expectedError := errors.New("network error")
 

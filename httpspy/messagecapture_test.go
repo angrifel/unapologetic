@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/angrifel/unapologetic/internal/assert"
+	"github.com/angrifel/unapologetic/internal/require"
 	"github.com/angrifel/unapologetic/internal/testaux"
 )
 
@@ -94,9 +95,7 @@ func TestRequestCaptureWithHeaderCensorshipFunction(t *testing.T) {
 			tcBodyBytes, tcBodyBytesErr := io.ReadAll(tc.req.Body)
 			_ = tcBodyBytesErr
 			expectedBytes, expectedBytesErr := testMaterial.ReadFile(tc.testFile)
-			if expectedBytesErr != nil {
-				t.Fatalf("Failed to read %s: %v", tc.testFile, expectedBytesErr)
-			}
+			require.IsNil(t, expectedBytesErr)
 
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				// arrange
@@ -209,9 +208,7 @@ func TestRequestOutCaptureWithHeaderCensorshipFunction(t *testing.T) {
 		t.Run(tc.testFile, func(t *testing.T) {
 			// arrange
 			expectedBytes, expectedBytesErr := testMaterial.ReadFile(tc.testFile)
-			if expectedBytesErr != nil {
-				t.Fatalf("Failed to read %s: %v", tc.testFile, expectedBytesErr)
-			}
+			require.IsNil(t, expectedBytesErr)
 
 			headersBeforeCapture := tc.req.Header.Clone()
 			captureFunction := RequestOutCaptureWithHeaderCensorshipFunction(tc.attemptCollectBody, tc.censorHeaders, tc.headerCensorText)
@@ -322,9 +319,7 @@ func TestResponseCaptureWithHeaderCensorshipFunction(t *testing.T) {
 		t.Run(tc.testFile, func(t *testing.T) {
 			// arrange
 			expectedBytes, expectedBytesErr := testMaterial.ReadFile(tc.testFile)
-			if expectedBytesErr != nil {
-				t.Fatalf("Failed to read %s: %v", tc.testFile, expectedBytesErr)
-			}
+			require.IsNil(t, expectedBytesErr)
 
 			headersBeforeCapture := tc.resp.Header.Clone()
 			captureFunction := ResponseCaptureWithHeaderCensorshipFunction(tc.attemptCollectBody, tc.censorHeaders, tc.headerCensorText)

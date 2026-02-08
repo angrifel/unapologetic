@@ -4,7 +4,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/angrifel/unapologetic/ioaux"
+	"github.com/angrifel/unapologetic/internal/assert"
+	"github.com/angrifel/unapologetic/internal/ioaux"
+	"github.com/angrifel/unapologetic/internal/require"
 )
 
 func TestWitnessCloser(t *testing.T) {
@@ -18,21 +20,13 @@ func TestWitnessCloser(t *testing.T) {
 		closeErr := cw.Close()
 
 		// assert
-		if closeErr != nil {
-			t.Errorf("expected nil error, got %v", closeErr)
-		}
+		assert.IsNil(t, closeErr)
 
 		calls := cw.ObservedCloseCalls()
-		if len(calls) != 1 {
-			t.Fatalf("expected 1 call, got %d", len(calls))
-		}
+		require.Equal(t, 1, len(calls))
 
-		if calls[0].ResultErr != nil {
-			t.Errorf("expected nil error, got %v", calls[0].ResultErr)
-		}
-		if calls[0].PanicVal != nil {
-			t.Errorf("expected nil panic, got %v", calls[0].PanicVal)
-		}
+		assert.IsNil(t, calls[0].ResultErr)
+		assert.IsNil(t, calls[0].PanicVal)
 	})
 
 	t.Run("captures close with errors", func(t *testing.T) {
@@ -46,20 +40,12 @@ func TestWitnessCloser(t *testing.T) {
 		closeErr := cw.Close()
 
 		// assert
-		if closeErr != expectedErr {
-			t.Errorf("expected error %v, got %v", expectedErr, closeErr)
-		}
+		assert.Equal(t, expectedErr, closeErr)
 
 		calls := cw.ObservedCloseCalls()
-		if len(calls) != 1 {
-			t.Fatalf("expected 1 call, got %d", len(calls))
-		}
-		if calls[0].ResultErr != expectedErr {
-			t.Errorf("expected error %v, got %v", expectedErr, calls[0].ResultErr)
-		}
-		if calls[0].PanicVal != nil {
-			t.Errorf("expected nil panic, got %v", calls[0].PanicVal)
-		}
+		require.Equal(t, 1, len(calls))
+		assert.Equal(t, expectedErr, calls[0].ResultErr)
+		assert.IsNil(t, calls[0].PanicVal)
 	})
 
 	t.Run("captures panics and re-panics", func(t *testing.T) {
@@ -81,21 +67,13 @@ func TestWitnessCloser(t *testing.T) {
 
 		// continue asserting
 		if panicVal == nil {
-			t.Error("expected panic, but did not panic")
+			t.Fatal("expected panic, but did not panic")
 		}
-		if panicVal != expectedPanicVal {
-			t.Errorf("expected panic value %v, got %v", expectedPanicVal, panicVal)
-		}
+		assert.Equal[any](t, expectedPanicVal, panicVal)
 
 		calls := cw.ObservedCloseCalls()
-		if len(calls) != 1 {
-			t.Fatalf("expected 1 call, got %d", len(calls))
-		}
-		if calls[0].ResultErr != nil {
-			t.Errorf("expected nil error, got %v", calls[0].ResultErr)
-		}
-		if calls[0].PanicVal != panicVal {
-			t.Errorf("expected panic value %v, got %v", panicVal, calls[0].PanicVal)
-		}
+		require.Equal(t, 1, len(calls))
+		assert.IsNil(t, calls[0].ResultErr)
+		assert.Equal(t, panicVal, calls[0].PanicVal)
 	})
 }

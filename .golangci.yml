@@ -113,7 +113,13 @@ linters:
     warn-unused: true
     paths:
       - "_test.go"
+      - "internal/assert/assert.go"
+      - "internal/require/require.go"
+      - "internal/ioaux/funcs.go"
+      - "internal/assertfunctions/assertfunctions.go"
   settings:
+    cyclop:
+      max-complexity: 32
     depguard:
       # refer to https://golangci-lint.run/usage/linters/#depguard for guidance
       rules:
@@ -122,3 +128,5 @@ linters:
           allow:
             - $gostd
             - github.com/angrifel/
+    funlen:
+      lines: 80

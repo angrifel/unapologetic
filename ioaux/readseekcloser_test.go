@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/angrifel/unapologetic/internal/assert"
+	"github.com/angrifel/unapologetic/internal/require"
 	"github.com/angrifel/unapologetic/iospy"
 )
 
@@ -21,73 +23,43 @@ func TestReadSeekCloser(t *testing.T) {
 
 		// Test reading
 		data, err := io.ReadAll(rsc)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if string(data) != content {
-			t.Errorf("expected %q, got %q", content, string(data))
-		}
+		require.IsNil(t, err)
+		assert.Equal(t, content, string(data))
 
 		// Test seeking to beginning
 		pos, err := rsc.Seek(0, io.SeekStart)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if pos != 0 {
-			t.Errorf("expected position 0, got %d", pos)
-		}
+		require.IsNil(t, err)
+		assert.Equal(t, int64(0), pos)
 
 		// Read again after seeking
 		data, err = io.ReadAll(rsc)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if string(data) != content {
-			t.Errorf("expected %q, got %q", content, string(data))
-		}
+		require.IsNil(t, err)
+		assert.Equal(t, content, string(data))
 
 		// Test seeking from current position
 		_, err = rsc.Seek(-5, io.SeekCurrent)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.IsNil(t, err)
 
 		// Read partial content after seek
 		buf := make([]byte, 5)
 		n, err := rsc.Read(buf)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if n != 5 {
-			t.Errorf("expected 5 bytes read, got %d", n)
-		}
-		if string(buf) != "orld!" {
-			t.Errorf("expected %q, got %q", "orld!", string(buf))
-		}
+		require.IsNil(t, err)
+		assert.Equal(t, 5, n)
+		assert.Equal(t, "orld!", string(buf))
 
 		// Test seeking from end
 		_, err = rsc.Seek(-6, io.SeekEnd)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.IsNil(t, err)
 
 		buf = make([]byte, 6)
 		n, err = rsc.Read(buf)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if n != 6 {
-			t.Errorf("expected 6 bytes read, got %d", n)
-		}
-		if string(buf) != "World!" {
-			t.Errorf("expected %q, got %q", "World!", string(buf))
-		}
+		require.IsNil(t, err)
+		assert.Equal(t, 6, n)
+		assert.Equal(t, "World!", string(buf))
 
 		// Test close
 		err = rsc.Close()
-		if err != nil {
-			t.Errorf("unexpected error: %v", err)
-		}
+		assert.IsNil(t, err)
 	})
 
 	t.Run("read error propagation", func(t *testing.T) {
@@ -99,45 +71,25 @@ func TestReadSeekCloser(t *testing.T) {
 
 		// first Read should not return error
 		n, err := rsc.Read(buffer)
-		if err != nil {
-			t.Errorf("unexpected error: %v", err)
-		}
-		if string(buffer[:n]) != "Hello" {
-			t.Errorf("expected %q, got %q", "Hello", string(buffer[:n]))
-		}
-		if n != 5 {
-			t.Errorf("expected 5 bytes read, got %d", n)
-		}
+		assert.IsNil(t, err)
+		assert.Equal(t, "Hello", string(buffer[:n]))
+		assert.Equal(t, 5, n)
 
 		// Second Read should populate some additional bytes
 		n, err = rsc.Read(buffer)
-		if err != nil {
-			t.Errorf("unexpected error: %v", err)
-		}
-		if string(buffer[:n]) != " W" {
-			t.Errorf("expected %q, got %q", " W", string(buffer[:n]))
-		}
-		if n != 2 {
-			t.Errorf("expected 2 bytes read, got %d", n)
-		}
+		assert.IsNil(t, err)
+		assert.Equal(t, " W", string(buffer[:n]))
+		assert.Equal(t, 2, n)
 
 		// Third Read should return an error
 		n, err = rsc.Read(buffer)
-		if !errors.Is(err, expectedErr) {
-			t.Errorf("expected error %v, got %v", expectedErr, err)
-		}
-		if string(buffer[:n]) != "" {
-			t.Errorf("expected empty string, got %q", string(buffer[:n]))
-		}
-		if n != 0 {
-			t.Errorf("expected 0 bytes read, got %d", n)
-		}
+		assert.Equal(t, expectedErr, err)
+		assert.Equal(t, "", string(buffer[:n]))
+		assert.Equal(t, 0, n)
 
 		// Close should not return the read error
 		err = rsc.Close()
-		if err != nil {
-			t.Errorf("unexpected error: %v", err)
-		}
+		assert.IsNil(t, err)
 	})
 
 	t.Run("close error propagation", func(t *testing.T) {
@@ -154,18 +106,12 @@ func TestReadSeekCloser(t *testing.T) {
 
 		// Reading should work
 		data, err := io.ReadAll(rsc)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if string(data) != "test" {
-			t.Errorf("expected %q, got %q", "test", string(data))
-		}
+		require.IsNil(t, err)
+		assert.Equal(t, "test", string(data))
 
 		// Close should return the error
 		err = rsc.Close()
-		if err != expectedErr {
-			t.Errorf("expected error %v, got %v", expectedErr, err)
-		}
+		assert.Equal(t, expectedErr, err)
 	})
 
 	t.Run("empty reader", func(t *testing.T) {
@@ -174,21 +120,13 @@ func TestReadSeekCloser(t *testing.T) {
 
 		// Reading empty content
 		data, err := io.ReadAll(rsc)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if len(data) != 0 {
-			t.Errorf("expected empty slice, got %d bytes", len(data))
-		}
+		require.IsNil(t, err)
+		assert.Equal(t, 0, len(data))
 
 		// Seeking in empty content
 		pos, err := rsc.Seek(0, io.SeekStart)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if pos != 0 {
-			t.Errorf("expected position 0, got %d", pos)
-		}
+		require.IsNil(t, err)
+		assert.Equal(t, int64(0), pos)
 	})
 
 	t.Run("large content", func(t *testing.T) {
@@ -200,12 +138,8 @@ func TestReadSeekCloser(t *testing.T) {
 
 		// Read all content
 		data, err := io.ReadAll(rsc)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if !bytes.Equal(content, data) {
-			t.Errorf("expected %d bytes, got %d bytes", len(content), len(data))
-		}
+		require.IsNil(t, err)
+		assert.EqualFunc(t, content, data, bytes.Equal)
 
 		// Seek to random positions and verify content
 		positions := []struct {
@@ -220,21 +154,13 @@ func TestReadSeekCloser(t *testing.T) {
 
 		for _, pos := range positions {
 			_, err := rsc.Seek(pos.offset, pos.whence)
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
+			require.IsNil(t, err)
 
 			buf := make([]byte, 10)
 			n, err := rsc.Read(buf)
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if n != 10 {
-				t.Errorf("expected 10 bytes read, got %d", n)
-			}
-			if string(buf) != pos.expect {
-				t.Errorf("expected %q, got %q", pos.expect, string(buf))
-			}
+			require.IsNil(t, err)
+			assert.Equal(t, 10, n)
+			assert.Equal(t, pos.expect, string(buf))
 		}
 	})
 
@@ -254,14 +180,10 @@ func TestReadSeekCloser(t *testing.T) {
 
 		// Read should fail with read error
 		_, err := rsc.Read(make([]byte, 1))
-		if !errors.Is(err, readErr) {
-			t.Errorf("expected error %v, got %v", readErr, err)
-		}
+		assert.Equal(t, readErr, err)
 
 		// Close should fail with close error
 		err = rsc.Close()
-		if !errors.Is(err, closeErr) {
-			t.Errorf("expected error %v, got %v", closeErr, err)
-		}
+		assert.Equal(t, closeErr, err)
 	})
 }

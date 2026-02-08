@@ -5,6 +5,9 @@ import (
 	"net"
 	"net/http"
 	"testing"
+
+	"github.com/angrifel/unapologetic/internal/assert"
+	"github.com/angrifel/unapologetic/internal/require"
 )
 
 func TestSliceEqual(t *testing.T) {
@@ -54,9 +57,7 @@ func TestSliceEqual(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := SliceEqual(tt.a, tt.b); got != tt.want {
-				t.Errorf("SliceEqual() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, SliceEqual(tt.a, tt.b))
 		})
 	}
 }
@@ -84,9 +85,7 @@ func TestSliceEqualStrings(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := SliceEqual(tt.a, tt.b); got != tt.want {
-				t.Errorf("SliceEqual() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, SliceEqual(tt.a, tt.b))
 		})
 	}
 }
@@ -185,9 +184,7 @@ func TestHeaderEqual(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := HeaderEqual(tt.a, tt.b); got != tt.want {
-				t.Errorf("HeaderEqual() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, HeaderEqual(tt.a, tt.b))
 		})
 	}
 }
@@ -196,9 +193,7 @@ func TestWaitForConnectAccept(t *testing.T) {
 	t.Run("successful connection", func(t *testing.T) {
 		// Start a listener on a random available port
 		listener, listerErr := net.Listen("tcp", "127.0.0.1:0")
-		if listerErr != nil {
-			t.Fatalf("Failed to start listener: %v", listerErr)
-		}
+		require.IsNil(t, listerErr)
 		t.Cleanup(func() { _ = listener.Close() })
 
 		// Get the actual address that was bound
@@ -216,41 +211,29 @@ func TestWaitForConnectAccept(t *testing.T) {
 		}()
 
 		// Test that WaitForConnectAccept succeeds
-
-		if err := WaitForConnectAccept(address); err != nil {
-			t.Errorf("WaitForConnectAccept() error = %v, want nil", err)
-		}
+		assert.IsNil(t, WaitForConnectAccept(address))
 	})
 
 	t.Run("timeout on unavailable port", func(t *testing.T) {
 		// Use an address that won't accept connections
 		// Find an available port and then don't listen on it
 		listener, listenerErr := net.Listen("tcp", "127.0.0.1:0")
-		if listenerErr != nil {
-			t.Fatalf("Failed to find available port: %v", listenerErr)
-		}
+		require.IsNil(t, listenerErr)
 		address := listener.Addr().String()
 		_ = listener.Close() // Close immediately so nothing is listening
 
 		// Test that WaitForConnectAccept times out
-
-		if err := WaitForConnectAccept(address); err == nil {
-			t.Error("WaitForConnectAccept() error = nil, want timeout error")
-		} else if !errors.Is(err, ErrTimeoutWaitingForConnect) {
-			t.Errorf("WaitForConnectAccept() error = %v, want ErrTimeoutWaitingForConnect", listenerErr)
-		}
+		err := WaitForConnectAccept(address)
+		assert.IsNotNil(t, err)
+		assert.Equal(t, true, errors.Is(err, ErrTimeoutWaitingForConnect))
 	})
 
 	t.Run("invalid address", func(t *testing.T) {
 		// Test with an invalid address format
 		err := WaitForConnectAccept("invalid:address:format")
-		if err == nil {
-			t.Error("WaitForConnectAccept() error = nil, want error for invalid address")
-		}
+		assert.IsNotNil(t, err)
 
 		// Should timeout since it can't connect
-		if !errors.Is(err, ErrTimeoutWaitingForConnect) {
-			t.Errorf("WaitForConnectAccept() error = %v, want ErrTimeoutWaitingForConnect", err)
-		}
+		assert.Equal(t, true, errors.Is(err, ErrTimeoutWaitingForConnect))
 	})
 }

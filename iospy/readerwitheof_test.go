@@ -5,6 +5,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/angrifel/unapologetic/internal/assert"
 )
 
 func TestReadWithEOFError(t *testing.T) {
@@ -13,7 +15,7 @@ func TestReadWithEOFError(t *testing.T) {
 
 		defer func() {
 			if r := recover(); r == nil {
-				t.Error("expected panic, but did not panic")
+				t.Fatal("expected panic, but did not panic")
 			}
 		}()
 
@@ -31,15 +33,9 @@ func TestReadWithEOFError(t *testing.T) {
 			// The first read should immediately return the custom EOF error
 			buf := make([]byte, 5)
 			n, err := wrappedReader.Read(buf)
-			if err != customEOFErr {
-				t.Errorf("expected error %v, got %v", customEOFErr, err)
-			}
-			if !bytes.Equal(buf, []byte{0, 0, 0, 0, 0}) {
-				t.Errorf("expected %v, got %v", []byte{0, 0, 0, 0, 0}, buf)
-			}
-			if n != 0 {
-				t.Errorf("expected 0 bytes read, got %d", n)
-			}
+			assert.Equal(t, customEOFErr, err)
+			assert.EqualFunc(t, []byte{0, 0, 0, 0, 0}, buf, bytes.Equal)
+			assert.Equal(t, 0, n)
 		})
 
 		t.Run("specified error on eof", func(t *testing.T) {
@@ -59,42 +55,18 @@ func TestReadWithEOFError(t *testing.T) {
 			n3, err3 := wrappedReader.Read(buf3)
 			n4, err4 := wrappedReader.Read(buf4)
 
-			if err1 != nil {
-				t.Errorf("expected nil error, got %v", err1)
-			}
-			if err2 != nil {
-				t.Errorf("expected nil error, got %v", err2)
-			}
-			if err3 != nil {
-				t.Errorf("expected nil error, got %v", err3)
-			}
-			if err4 != customEOFErr {
-				t.Errorf("expected error %v, got %v", customEOFErr, err4)
-			}
-			if n1 != 5 {
-				t.Errorf("expected 5 bytes read, got %d", n1)
-			}
-			if n2 != 5 {
-				t.Errorf("expected 5 bytes read, got %d", n2)
-			}
-			if n3 != 1 {
-				t.Errorf("expected 1 byte read, got %d", n3)
-			}
-			if n4 != 0 {
-				t.Errorf("expected 0 bytes read, got %d", n4)
-			}
-			if !bytes.Equal(buf1, []byte("hello")) {
-				t.Errorf("expected %v, got %v", []byte("hello"), buf1)
-			}
-			if !bytes.Equal(buf2, []byte(" worl")) {
-				t.Errorf("expected %v, got %v", []byte(" worl"), buf2)
-			}
-			if !bytes.Equal(buf3, []byte("d\x00\x00\x00\x00")) {
-				t.Errorf("expected %v, got %v", []byte("d\x00\x00\x00\x00"), buf3)
-			}
-			if !bytes.Equal(buf4, []byte{0, 0, 0, 0, 0}) {
-				t.Errorf("expected %v, got %v", []byte{0, 0, 0, 0, 0}, buf4)
-			}
+			assert.IsNil(t, err1)
+			assert.IsNil(t, err2)
+			assert.IsNil(t, err3)
+			assert.Equal(t, customEOFErr, err4)
+			assert.Equal(t, 5, n1)
+			assert.Equal(t, 5, n2)
+			assert.Equal(t, 1, n3)
+			assert.Equal(t, 0, n4)
+			assert.EqualFunc(t, []byte("hello"), buf1, bytes.Equal)
+			assert.EqualFunc(t, []byte(" worl"), buf2, bytes.Equal)
+			assert.EqualFunc(t, []byte("d\x00\x00\x00\x00"), buf3, bytes.Equal)
+			assert.EqualFunc(t, []byte{0, 0, 0, 0, 0}, buf4, bytes.Equal)
 
 		})
 
@@ -108,26 +80,14 @@ func TestReadWithEOFError(t *testing.T) {
 			// Read available data
 			buf := make([]byte, 10)
 			n, err := wrappedReader.Read(buf)
-			if err != nil {
-				t.Errorf("expected nil error, got %v", err)
-			}
-			if n != 4 {
-				t.Errorf("expected 4 bytes read, got %d", n)
-			}
-			if string(buf[:n]) != "test" {
-				t.Errorf("expected %q, got %q", "test", string(buf[:n]))
-			}
+			assert.IsNil(t, err)
+			assert.Equal(t, 4, n)
+			assert.Equal(t, "test", string(buf[:n]))
 
 			n, err = wrappedReader.Read(buf)
-			if err != underlyingErr {
-				t.Errorf("expected error %v, got %v", underlyingErr, err)
-			}
-			if n != 0 {
-				t.Errorf("expected 0 bytes read, got %d", n)
-			}
-			if string(buf[:n]) != "" {
-				t.Errorf("expected empty string, got %q", string(buf[:n]))
-			}
+			assert.Equal(t, underlyingErr, err)
+			assert.Equal(t, 0, n)
+			assert.Equal(t, "", string(buf[:n]))
 		})
 
 	})

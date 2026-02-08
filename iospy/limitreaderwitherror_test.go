@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/angrifel/unapologetic/internal/assert"
 )
 
 func TestLimitReaderWithError(t *testing.T) {
@@ -15,7 +17,7 @@ func TestLimitReaderWithError(t *testing.T) {
 
 		defer func() {
 			if r := recover(); r == nil {
-				t.Error("expected panic, but did not panic")
+				t.Fatal("expected panic, but did not panic")
 			}
 		}()
 
@@ -148,15 +150,9 @@ func TestLimitReaderWithError(t *testing.T) {
 				for _, tccd := range tc.chunkData {
 					buf := make([]byte, tccd.chunkSizes)
 					n, err := limitedReader.Read(buf)
-					if err != tccd.expectedError {
-						t.Errorf("expected error %v, got %v", tccd.expectedError, err)
-					}
-					if n != tccd.expectedBytesRead {
-						t.Errorf("expected %d bytes read, got %d", tccd.expectedBytesRead, n)
-					}
-					if !bytes.Equal(buf, tccd.expectedChunkContent) {
-						t.Errorf("expected %v, got %v", tccd.expectedChunkContent, buf)
-					}
+					assert.Equal(t, tccd.expectedError, err)
+					assert.Equal(t, tccd.expectedBytesRead, n)
+					assert.EqualFunc(t, tccd.expectedChunkContent, buf, bytes.Equal)
 				}
 			})
 		}
@@ -172,23 +168,13 @@ func TestLimitReaderWithError(t *testing.T) {
 		// Read should succeed for available R
 		buf := make([]byte, 5)
 		n, err := limitedReader.Read(buf)
-		if err != nil {
-			t.Errorf("expected nil error, got %v", err)
-		}
-		if n != 2 {
-			t.Errorf("expected 2 bytes read, got %d", n)
-		}
-		if string(buf[:n]) != "Hi" {
-			t.Errorf("expected %q, got %q", "Hi", string(buf[:n]))
-		}
+		assert.IsNil(t, err)
+		assert.Equal(t, 2, n)
+		assert.Equal(t, "Hi", string(buf[:n]))
 
 		n, err = limitedReader.Read(buf)
-		if err != underlyingErr {
-			t.Errorf("expected error %v, got %v", underlyingErr, err)
-		}
-		if n != 0 {
-			t.Errorf("expected 0 bytes read, got %d", n)
-		}
+		assert.Equal(t, underlyingErr, err)
+		assert.Equal(t, 0, n)
 	})
 
 	t.Run("different error types", func(t *testing.T) {
@@ -209,21 +195,13 @@ func TestLimitReaderWithError(t *testing.T) {
 				// Read within limit
 				buf := make([]byte, 2)
 				n, err := limitedReader.Read(buf)
-				if err != nil {
-					t.Errorf("expected nil error, got %v", err)
-				}
-				if n != 2 {
-					t.Errorf("expected 2 bytes read, got %d", n)
-				}
+				assert.IsNil(t, err)
+				assert.Equal(t, 2, n)
 
 				// Read beyond limit
 				n, err = limitedReader.Read(buf)
-				if !errors.Is(err, tc.err) {
-					t.Errorf("expected error %v, got %v", tc.err, err)
-				}
-				if n != 0 {
-					t.Errorf("expected 0 bytes read, got %d", n)
-				}
+				assert.Equal(t, tc.err, err)
+				assert.Equal(t, 0, n)
 			})
 		}
 	})

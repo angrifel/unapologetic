@@ -10,6 +10,10 @@
 //   - Create RoundTripper implementations from functions
 //   - Preserve error semantics when manipulating response bodies
 //
+// httpspy - HTTP message capture for debugging, logging, and testing:
+//   - Capture HTTP requests and responses with configurable header censoring
+//   - Non-destructive snapshots that preserve original message state
+//
 // ioaux - I/O auxiliary utilities and adapters:
 //   - Function adapters (ReaderFunc, CloserFunc) for implementing io interfaces
 //   - ReadSeekCloser for adding seek capabilities to io.ReadCloser

@@ -2,7 +2,6 @@ package httpaux
 
 import (
 	"io"
-	"maps"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -10,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/angrifel/unapologetic/internal/assert"
+	"github.com/angrifel/unapologetic/internal/testaux"
 )
 
 func TestCloneHTTPResponseWithSameBody(t *testing.T) {
@@ -51,15 +51,9 @@ func assertCloneHTTPResponseWithBody(t *testing.T, response *http.Response, repl
 	assert.Equal(t, response.Request, clonedResponse.Request)
 	assert.Equal(t, response.TLS, clonedResponse.TLS)
 
-	if !maps.EqualFunc(response.Header, clonedResponse.Header, slices.Equal) {
-		t.Errorf("Header: expected %v, got %v", response.Header, clonedResponse.Header)
-	}
-	if !maps.EqualFunc(response.Trailer, clonedResponse.Trailer, slices.Equal) {
-		t.Errorf("Trailer: expected %v, got %v", response.Trailer, clonedResponse.Trailer)
-	}
-	if !slices.Equal(response.TransferEncoding, clonedResponse.TransferEncoding) {
-		t.Errorf("TransferEncoding: expected %v, got %v", response.TransferEncoding, clonedResponse.TransferEncoding)
-	}
+	assert.EqualFunc(t, response.Header, clonedResponse.Header, testaux.HeaderEqual)
+	assert.EqualFunc(t, response.Trailer, clonedResponse.Trailer, testaux.HeaderEqual)
+	assert.EqualFunc(t, response.TransferEncoding, clonedResponse.TransferEncoding, slices.Equal)
 
 	assert.Equal(t, replacementBody, clonedResponse.Body)
 }
