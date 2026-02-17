@@ -1,4 +1,4 @@
-.PHONY: git-rev-list-last-release-commit git-diff-since-last-release git-log-since-last-release check-go check-godoc check-docker check-act install-godoc view-godoc-locally install-git-hooks docker-golangci-lint lint-nocache lint test run-github-action
+.PHONY: git-rev-list-last-release-commit git-diff-since-last-release git-log-since-last-release check-go check-godoc check-docker check-act install-godoc view-godoc-locally install-git-hooks docker-golangci-lint lint-nocache lint test run-github-action prepare-release
 
 GOLANGCI_LINT_VERSION=v2.3.1
 LRC=git describe --tags --match 'v*' --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD | tail -1
@@ -58,3 +58,16 @@ lint: check-go tidy docker-golangci-lint
 		-v $(HOME)/.cache/golangci-lint:/root/.cache/golangci-lint \
 		-w /app \
 		golangci/golangci-lint:$(GOLANGCI_LINT_VERSION) golangci-lint run
+
+prepare-release:
+ifndef VERSION
+	$(error VERSION is required. Usage: make prepare-release VERSION=v1.0.0)
+endif
+	@echo "$(VERSION)" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$$' || \
+		(echo "Error: VERSION '$(VERSION)' is not a valid semver string (expected: vMAJOR.MINOR.PATCH[-PRERELEASE])" && exit 1)
+	@DATE=$$(date +%Y-%m-%d); \
+	sed -i "s/## \[Unreleased\]/## [$(VERSION)] - $$DATE/" CHANGELOG.md; \
+	sed -i "s/^\[Unreleased\]: \(.*\/compare\/[a-f0-9]*\)\.\.\..*/[$(VERSION)]: \1...$(VERSION)/" CHANGELOG.md
+	@git add CHANGELOG.md
+	@git commit -m "release version $(VERSION)"
+	@git tag $(VERSION)
