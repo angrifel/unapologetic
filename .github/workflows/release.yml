@@ -21,15 +21,17 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Set archive name
-        run: echo "ARCHIVE=unapologetic-${TAG#v}.tar.gz" >> "$GITHUB_ENV"
+        run: |
+          echo "ARCHIVE=unapologetic-${TAG}.tar.gz" >> "$GITHUB_ENV"
+          echo "SBOM=unapologetic-${TAG}.sbom.spdx.json" >> "$GITHUB_ENV"
 
       - name: Create source archive
-        run: git archive --format=tar.gz --prefix=unapologetic-${TAG#v}/ -o "$ARCHIVE" HEAD
+        run: git archive --format=tar.gz --prefix=unapologetic-${TAG}/ -o "$ARCHIVE" HEAD
 
       - name: Generate SBOM
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh api repos/${{ github.repository }}/dependency-graph/sbom --jq '.sbom' > sbom.spdx.json
+        run: gh api repos/${{ github.repository }}/dependency-graph/sbom --jq '.sbom' > "$SBOM"
 
       - name: Create draft release
         env:
@@ -39,7 +41,7 @@ jobs:
       - name: Upload release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" "$ARCHIVE" sbom.spdx.json
+        run: gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" "$ARCHIVE" "$SBOM"
 
       - name: Attest build provenance
         uses: actions/attest-build-provenance@v3
@@ -50,4 +52,4 @@ jobs:
         uses: actions/attest-sbom@v3
         with:
           subject-path: ${{ env.ARCHIVE }}
-          sbom-path: sbom.spdx.json
+          sbom-path: ${{ env.SBOM }}
