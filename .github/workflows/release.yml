@@ -23,16 +23,24 @@ jobs:
       - name: Set archive name
         run: |
           echo "ARCHIVE=unapologetic-${TAG}.tar.gz" >> "$GITHUB_ENV"
+          echo "ZIP_ARCHIVE=unapologetic-${TAG}.zip" >> "$GITHUB_ENV"
           echo "SBOM=unapologetic-${TAG}.sbom.spdx.json" >> "$GITHUB_ENV"
+          echo "CHECKSUMS=unapologetic-${TAG}.sha256sums.txt" >> "$GITHUB_ENV"
 
-      - name: Create source archive
+      - name: Create source archive (tar.gz)
         run: git archive --format=tar.gz --prefix=unapologetic-${TAG}/ -o "$ARCHIVE" HEAD
+
+      - name: Create source archive (zip)
+        run: git archive --format=zip --prefix=unapologetic-${TAG}/ -o "$ZIP_ARCHIVE" HEAD
 
         # for this action to work, Dependency Graph needs to be enabled for the repository.
       - name: Generate SBOM
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh api repos/${{ github.repository }}/dependency-graph/sbom --jq '.sbom' > "$SBOM"
+
+      - name: Generate checksums
+        run: sha256sum "$ARCHIVE" "$ZIP_ARCHIVE" "$SBOM" > "$CHECKSUMS"
 
       - name: Create draft release
         env:
@@ -47,15 +55,17 @@ jobs:
       - name: Upload release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" "$ARCHIVE" "$SBOM"
+        run: gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" "$ARCHIVE" "$ZIP_ARCHIVE" "$SBOM" "$CHECKSUMS"
 
       - name: Attest build provenance
         uses: actions/attest-build-provenance@v3
         with:
-          subject-path: ${{ env.ARCHIVE }}
+          subject-checksums: ${{ env.CHECKSUMS }}
 
       - name: Attest SBOM
         uses: actions/attest-sbom@v3
         with:
-          subject-path: ${{ env.ARCHIVE }}
+          subject-path: |
+            ${{ env.ARCHIVE }}
+            ${{ env.ZIP_ARCHIVE }}
           sbom-path: ${{ env.SBOM }}
