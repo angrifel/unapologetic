@@ -1,16 +1,25 @@
-.PHONY: git-rev-list-last-release-commit git-diff-since-last-release git-log-since-last-release check-go check-godoc check-docker check-act install-godoc view-godoc-locally install-git-hooks docker-golangci-lint lint-nocache lint test run-github-action prepare-release
+.PHONY: git-rev-list-last-release-commit git-diff-since-last-release git-log-since-last-release check-go check-godoc check-docker check-act install-godoc view-godoc-locally install-git-hooks docker-golangci-lint lint-nocache lint test run-github-action prepare-release semver-prerelease
 
 GOLANGCI_LINT_VERSION=v2.3.1
-LRC=git describe --tags --match 'v*' --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD | tail -1
+
+LAST_RELEASE_TAG=git describe --tags --match 'v*' --abbrev=0 2>/dev/null
+LAST_RELEASE_REV=$(LAST_RELEASE_TAG) || git rev-list --max-parents=0 HEAD | tail -1
+
+SEMVER_PRERELEASE_CORE={ $(LAST_RELEASE_TAG) || echo "v0.0.0"; } | sed 's/^\(v[0-9]*\.[0-9]*\.[0-9]*\).*/\1/'
+SEMVER_PRERELEASE_PRERELEASE=git rev-parse --abbrev-ref HEAD | sed 's/[^a-zA-Z0-9]/--/g'
+SEMVER_PRERELEASE_BUILD=git rev-parse --short HEAD
+
+semver-prerelease:
+	@echo "$(shell $(SEMVER_PRERELEASE_CORE))-$(shell $(SEMVER_PRERELEASE_PRERELEASE))+$(shell $(SEMVER_PRERELEASE_BUILD))"
 
 git-rev-list-last-release-commit:
-	@$(LRC)
+	@$(LAST_RELEASE_REV)
 
 git-diff-since-last-release:
-	@git diff $(shell $(LRC))...HEAD
+	@git diff $(shell $(LAST_RELEASE_REV))...HEAD
 
 git-log-since-last-release:
-	@git log --oneline $(shell $(LRC))..HEAD
+	@git log --oneline $(shell $(LAST_RELEASE_REV))..HEAD
 
 install-godoc:
 	@go install golang.org/x/tools/cmd/godoc@latest

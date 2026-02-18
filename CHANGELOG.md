@@ -18,7 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions release workflow with source archives (tar.gz, zip), SBOM generation, SHA-256 checksums, and build provenance attestations
 - Pre-commit git hook running lint and test
 - Makefile with targets for testing, linting, module tidying, local GitHub Actions execution, and release diff helpers
+- Makefile `prepare-release` target for automating changelog version bumps, committing, and tagging releases
+- Makefile `semver-prerelease` target for generating pre-release version strings
 - Claude Code `update-changelog` skill for automated changelog updates
 - MIT license
+- README with project overview, Go Reference documentation link, CI status badge, and license badge
 
 [Unreleased]: https://github.com/angrifel/unapologetic/compare/ea00b4371869d02656bbd97841caff4a76bc451d...master
