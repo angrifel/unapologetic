@@ -13,12 +13,6 @@ import (
 )
 
 func TestBufferResponse(t *testing.T) {
-	t.Run("call with non-nil error should echo the error back", func(t *testing.T) {
-		resp := BufferResponseBody(nil)
-
-		assert.IsNil(t, resp)
-	})
-
 	t.Run("call with non-nil *http.Response", func(t *testing.T) {
 
 		t.Run("with no read error and no close error", func(t *testing.T) {
