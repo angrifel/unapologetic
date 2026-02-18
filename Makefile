@@ -72,8 +72,8 @@ prepare-release:
 ifndef VERSION
 	$(error VERSION is required. Usage: make prepare-release VERSION=v1.0.0)
 endif
-	@echo "$(VERSION)" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$$' || \
-		(echo "Error: VERSION '$(VERSION)' is not a valid semver string (expected: vMAJOR.MINOR.PATCH[-PRERELEASE])" && exit 1)
+	@echo "$(VERSION)" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?([+][0-9A-Za-z.-]+)?$$' || \
+		(echo "Error: VERSION '$(VERSION)' is not a valid semver string (expected: vMAJOR.MINOR.PATCH[-PRERELEASE][+BUILD])" && exit 1)
 	@DATE=$$(date +%Y-%m-%d); \
 	sed -i "s/## \[Unreleased\]/## [$(VERSION)] - $$DATE/" CHANGELOG.md; \
 	sed -i "s/^\[Unreleased\]: \(.*\/compare\/[a-f0-9]*\)\.\.\..*/[$(VERSION)]: \1...$(VERSION)/" CHANGELOG.md
