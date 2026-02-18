@@ -39,6 +39,9 @@ Design principles: composable utilities, preserved error semantics, testability 
 - **Commit messages**: Use lowercase imperative style (e.g., "add feature", "fix bug", "simplify logic")
 - **Doc comments**: Public symbols use Go-standard doc comments (`// FunctionName does X`)
 
+### Opportunistic bug and typo reporting:
+When reading files as part of any task, always report bugs and typos found outside the scope of the current task. For each finding, present it as a follow-up prompt at the end of the response using the `AskUserQuestion` tool, with options for corrective actions (e.g., fix it now, fix it later, ignore it).
+
 ### General coding principles:
 - **No external dependencies**: Self-explanatory. Only take dependencies from golang's stdlib
 - **No external services**: Features MUST NOT rely on calls to external services like web APIs or databases.

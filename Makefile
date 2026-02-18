@@ -1,4 +1,4 @@
-.PHONY: git-rev-list-last-release-commit git-diff-since-last-release git-log-since-last-release check-go check-godoc check-docker check-act install-godoc view-godoc-locally install-git-hooks docker-golangci-lint lint-nocache lint test run-github-action prepare-release semver-prerelease
+.PHONY: git-rev-list-last-release-commit git-diff-since-last-release git-log-since-last-release check-go check-godoc check-docker check-act install-godoc view-godoc-locally install-git-hooks docker-golangci-lint lint-nocache lint test run-github-action prepare-release semver-prerelease changelog-release-notes
 
 GOLANGCI_LINT_VERSION=v2.3.1
 
@@ -80,3 +80,28 @@ endif
 	@git add CHANGELOG.md
 	@git commit -m "release version $(VERSION)"
 	@git tag $(VERSION)
+
+changelog-release-notes:
+ifndef VERSION
+	$(error VERSION is required. Usage: make changelog-release-notes VERSION=v1.0.0)
+endif
+	@if grep -qE '^## \[Unreleased\]|^\[Unreleased\]:' CHANGELOG.md; then \
+		echo "Error: CHANGELOG.md contains an [Unreleased] section or link. Run 'make prepare-release' before generating release notes." >&2; \
+		exit 1; \
+	fi; \
+	MOST_RECENT=$$(awk '/^## \[/{gsub(/^## \[/, ""); gsub(/\].*/, ""); print; exit}' CHANGELOG.md); \
+	if [ "$$MOST_RECENT" != "$(VERSION)" ]; then \
+		echo "Error: VERSION '$(VERSION)' is not the most recent version in CHANGELOG.md (most recent is '$$MOST_RECENT')" >&2; \
+		exit 1; \
+	fi; \
+	NOTES=$$(awk '/^## \[$(VERSION)\]/{found=1; next} found && (/^## / || /^\[.*\]:/) {exit} found{print}' CHANGELOG.md); \
+	LINK=$$(awk '/^\[$(VERSION)\]:/{print; exit}' CHANGELOG.md); \
+	if [ -z "$$NOTES" ]; then \
+		echo "Error: No release notes found for $(VERSION) in CHANGELOG.md" >&2; \
+		exit 1; \
+	fi; \
+	echo "$$NOTES"; \
+	if [ -n "$$LINK" ]; then \
+		echo ""; \
+		echo "$$LINK"; \
+	fi

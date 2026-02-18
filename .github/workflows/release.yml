@@ -20,6 +20,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
+      - name: Extract changelog release notes
+        run: make changelog-release-notes VERSION="$TAG" > CHANGELOG_NOTES.md
+
       - name: Set archive name
         run: |
           echo "ARCHIVE=unapologetic-${TAG}.tar.gz" >> "$GITHUB_ENV"
@@ -33,11 +36,10 @@ jobs:
       - name: Create source archive (zip)
         run: git archive --format=zip --prefix=unapologetic-${TAG}/ -o "$ZIP_ARCHIVE" HEAD
 
-        # for this action to work, Dependency Graph needs to be enabled for the repository.
       - name: Generate SBOM
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh api repos/${{ github.repository }}/dependency-graph/sbom --jq '.sbom' > "$SBOM"
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin v1.38.2
+          syft . --output spdx-json="$SBOM"
 
       - name: Generate checksums
         run: sha256sum "$ARCHIVE" "$ZIP_ARCHIVE" "$SBOM" > "$CHECKSUMS"
@@ -51,6 +53,19 @@ jobs:
             PRERELEASE_FLAG="--prerelease"
           fi
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --title "$TAG" --generate-notes $PRERELEASE_FLAG
+
+      - name: Append changelog notes to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body -q '.body' > COMBINED_NOTES.md
+          echo "" >> COMBINED_NOTES.md
+          echo "---" >> COMBINED_NOTES.md
+          echo "" >> COMBINED_NOTES.md
+          echo "## Changelog" >> COMBINED_NOTES.md
+          echo "" >> COMBINED_NOTES.md
+          cat CHANGELOG_NOTES.md >> COMBINED_NOTES.md
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file COMBINED_NOTES.md
 
       - name: Upload release assets
         env:
