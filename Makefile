@@ -94,7 +94,7 @@ endif
 		echo "Error: VERSION '$(VERSION)' is not the most recent version in CHANGELOG.md (most recent is '$$MOST_RECENT')" >&2; \
 		exit 1; \
 	fi; \
-	NOTES=$$(awk -v ver="$(VERSION)" 'index($$0,"## [" ver "]")==1{found=1; next} found && (/^## / || /^\[.*\]:/) {exit} found{print}' CHANGELOG.md); \
+	NOTES=$$(awk -v ver="$(VERSION)" 'index($$0,"## [" ver "]")==1{found=1; print; next} found && (/^## / || /^\[.*\]:/) {exit} found{print}' CHANGELOG.md); \
 	LINK=$$(awk -v ver="$(VERSION)" 'index($$0,"[" ver "]:")==1{print; exit}' CHANGELOG.md); \
 	if [ -z "$$NOTES" ]; then \
 		echo "Error: No release notes found for $(VERSION) in CHANGELOG.md" >&2; \
