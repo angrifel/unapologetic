@@ -61,8 +61,8 @@ Documentation is crucial to enable effective adoption of this code library. Here
   - The root `doc.go` must list all public packages.
   - Contents of the `doc.go` should be consistent with its package code.
 - **Examples**: Include examples of how to use the code to help readers understand its usage and functionality.
-  - Examples should be capture uin go code in Example{FunctionName} format.
-  - Examples should be as minimla as possible to demonstrate the intended usage.
+  - Examples should be captured in go code in Example{FunctionName} format.
+  - Examples should be as minimal as possible to demonstrate the intended usage.
   - Examples must be written in files named `{filename}.example_test.go`.
 - **Version control**: Keep documentation up-to-date with changes to the codebase. Update documentation whenever you make changes to the code or add new features.
 

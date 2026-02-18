@@ -10,7 +10,8 @@ SEMVER_PRERELEASE_PRERELEASE=git rev-parse --abbrev-ref HEAD | sed 's/[^a-zA-Z0-
 SEMVER_PRERELEASE_BUILD=git rev-parse --short HEAD
 
 semver-prerelease:
-	@echo "$(shell $(SEMVER_PRERELEASE_CORE))-$(shell $(SEMVER_PRERELEASE_PRERELEASE))+$(shell $(SEMVER_PRERELEASE_BUILD))"
+	@CORE=$$(echo "$(shell $(SEMVER_PRERELEASE_CORE))" | awk -F. '{print $$1"."$$2"."$$3+1}'); \
+	echo "$$CORE-$(shell $(SEMVER_PRERELEASE_PRERELEASE))+$(shell $(SEMVER_PRERELEASE_BUILD))"
 
 git-rev-list-last-release-commit:
 	@$(LAST_RELEASE_REV)
