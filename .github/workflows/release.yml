@@ -31,7 +31,7 @@ jobs:
           echo "CHECKSUMS=${ASSET_PREFIX}.sha256sums.txt" >> "$GITHUB_ENV"
 
       - name: Extract changelog release notes
-        run: make changelog-release-notes VERSION="$TAG" > "${RELEASE_NOTES}"
+        run: ./release-management.sh extract-version-notes "$TAG" > "${RELEASE_NOTES}"
 
       - name: Create source archive (tar.gz)
         run: git archive --format=tar.gz --prefix=${ASSET_PREFIX}/ -o "$ARCHIVE" HEAD
