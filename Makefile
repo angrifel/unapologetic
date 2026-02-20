@@ -16,8 +16,12 @@ semver-prerelease:
 git-rev-list-last-release-commit:
 	@$(LAST_RELEASE_REV)
 
-git-diff-since-last-release:
-	@git diff $(shell $(LAST_RELEASE_REV))...HEAD
+git-diff-stat-since-last-release:
+ifdef STAT_WIDTH
+	git diff --stat=$(STAT_WIDTH) $(shell $(LAST_RELEASE_REV))...HEAD
+else
+	git diff --stat $(shell $(LAST_RELEASE_REV))...HEAD
+endif
 
 git-log-since-last-release:
 	@git log --oneline $(shell $(LAST_RELEASE_REV))..HEAD
