@@ -8,7 +8,7 @@ Update the `CHANGELOG.md` file at the root of the repository following the [Keep
 
 ## Instructions
 
-**Important:** Only run the commands explicitly listed in these instructions. Do not run additional git commands (e.g., `git tag`, `git describe`) beyond what is specified. You may run `git diff` to obtains the differences of files obtained through `make git-diff-stat-since-last-release`
+**Important:** Only run the commands explicitly listed in these instructions. Do not run additional git commands (e.g., `git tag`, `git log`) beyond what is specified. You may run `git diff` to obtains the differences of files obtained from commands specified in these instructions.
 
 **ALWAYS** compare between the `BASE COMMIT` and the current commit. `BASE COMMIT` will be explained in detail in the next steps.
 
@@ -30,10 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 1. Read `CHANGELOG.md`.
 
-2. Determine the base commit against which to compare changes. Use `make git-rev-list-last-release-commit` to get the `BASE COMMIT`. This target always produces a valid commit hash, even when no prior releases exist. Remember this for the duration of the skill as this will be used in many places.
+2. Determine the base commit against which to compare changes. Use `./release-management.sh last-release-rev` to get the `BASE COMMIT`. This target always produces a valid commit hash, even when no prior releases exist. Remember this for the duration of the skill as this will be used in many places.
 
 3. Determine what has changed.
-   - Use `make git-diff-stat-since-last-release` to get the diff stat between the `BASE COMMIT` and the current commit.
+   - Use `git diff --name-only ${BASE_COMMIT}...HEAD` to get the list of files that changed between `BASE COMMIT` and the current commit.
      - Thoroughly examine the entire diff contents of the files obtained here to understand all changes.
      - ONLY use changes visible in this diff as the basis for changelog entries.
 

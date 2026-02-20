@@ -1,30 +1,12 @@
-.PHONY: git-rev-list-last-release-commit git-diff-since-last-release git-log-since-last-release check-go check-godoc check-docker check-act install-godoc view-godoc-locally install-git-hooks docker-golangci-lint lint-nocache lint test run-github-action prepare-release semver-prerelease changelog-release-notes
+.PHONY: git-rev-list-last-release-commit git-log-since-last-release check-go check-godoc check-docker check-act install-godoc view-godoc-locally install-git-hooks docker-golangci-lint lint-nocache lint test run-github-action
 
 GOLANGCI_LINT_VERSION=v2.3.1
 
-LAST_RELEASE_TAG=git describe --tags --match 'v*' --abbrev=0 2>/dev/null
-LAST_RELEASE_REV=$(LAST_RELEASE_TAG) || git rev-list --max-parents=0 HEAD | tail -1
-
-SEMVER_PRERELEASE_CORE={ $(LAST_RELEASE_TAG) || echo "v0.0.0"; } | sed 's/^\(v[0-9]*\.[0-9]*\.[0-9]*\).*/\1/'
-SEMVER_PRERELEASE_PRERELEASE=git rev-parse --abbrev-ref HEAD | sed 's/[^a-zA-Z0-9]/--/g'
-SEMVER_PRERELEASE_BUILD=printf '%s-%s' "$$(date -u +%Y%m%d-%H%M%S)" "$$(git rev-parse --short HEAD)"
-
-semver-prerelease:
-	@CORE=$$(echo "$(shell $(SEMVER_PRERELEASE_CORE))" | awk -F. '{print $$1"."$$2"."$$3+1}'); \
-	echo "$$CORE-$(shell $(SEMVER_PRERELEASE_PRERELEASE))+$(shell $(SEMVER_PRERELEASE_BUILD))"
-
 git-rev-list-last-release-commit:
-	@$(LAST_RELEASE_REV)
-
-git-diff-stat-since-last-release:
-ifdef STAT_WIDTH
-	git diff --stat=$(STAT_WIDTH) $(shell $(LAST_RELEASE_REV))...HEAD
-else
-	git diff --stat $(shell $(LAST_RELEASE_REV))...HEAD
-endif
+	./release-management.sh last-release-rev
 
 git-log-since-last-release:
-	@git log --oneline $(shell $(LAST_RELEASE_REV))..HEAD
+	@git log --oneline $(shell ./release-management.sh last-release-rev)..HEAD
 
 install-godoc:
 	@go install golang.org/x/tools/cmd/godoc@latest
@@ -72,41 +54,3 @@ lint: check-go tidy docker-golangci-lint
 		-v $(HOME)/.cache/golangci-lint:/root/.cache/golangci-lint \
 		-w /app \
 		golangci/golangci-lint:$(GOLANGCI_LINT_VERSION) golangci-lint run
-
-prepare-release:
-ifndef VERSION
-	$(error VERSION is required. Usage: make prepare-release VERSION=v1.0.0)
-endif
-	@echo "$(VERSION)" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?([+][0-9A-Za-z.-]+)?$$' || \
-		(echo "Error: VERSION '$(VERSION)' is not a valid semver string (expected: vMAJOR.MINOR.PATCH[-PRERELEASE][+BUILD])" && exit 1)
-	@DATE=$$(date +%Y-%m-%d); \
-	sed -i "s/## \[Unreleased\]/## [$(VERSION)] - $$DATE/" CHANGELOG.md; \
-	sed -i "s/^\[Unreleased\]: \(.*\/compare\/[a-f0-9]*\)\.\.\..*/[$(VERSION)]: \1...$(VERSION)/" CHANGELOG.md
-	@git add CHANGELOG.md
-	@git commit -m "release version $(VERSION)"
-	@git tag $(VERSION)
-
-changelog-release-notes:
-ifndef VERSION
-	$(error VERSION is required. Usage: make changelog-release-notes VERSION=v1.0.0)
-endif
-	@if grep -qE '^## \[Unreleased\]|^\[Unreleased\]:' CHANGELOG.md; then \
-		echo "Error: CHANGELOG.md contains an [Unreleased] section or link. Run 'make prepare-release' before generating release notes." >&2; \
-		exit 1; \
-	fi; \
-	MOST_RECENT=$$(awk '/^## \[/{gsub(/^## \[/, ""); gsub(/\].*/, ""); print; exit}' CHANGELOG.md); \
-	if [ "$$MOST_RECENT" != "$(VERSION)" ]; then \
-		echo "Error: VERSION '$(VERSION)' is not the most recent version in CHANGELOG.md (most recent is '$$MOST_RECENT')" >&2; \
-		exit 1; \
-	fi; \
-	NOTES=$$(awk -v ver="$(VERSION)" 'index($$0,"## [" ver "]")==1{found=1; print; next} found && (/^## / || /^\[.*\]:/) {exit} found{print}' CHANGELOG.md); \
-	LINK=$$(awk -v ver="$(VERSION)" 'index($$0,"[" ver "]:")==1{print; exit}' CHANGELOG.md); \
-	if [ -z "$$NOTES" ]; then \
-		echo "Error: No release notes found for $(VERSION) in CHANGELOG.md" >&2; \
-		exit 1; \
-	fi; \
-	echo "$$NOTES"; \
-	if [ -n "$$LINK" ]; then \
-		echo ""; \
-		echo "$$LINK"; \
-	fi
