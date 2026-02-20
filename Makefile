@@ -7,7 +7,7 @@ LAST_RELEASE_REV=$(LAST_RELEASE_TAG) || git rev-list --max-parents=0 HEAD | tail
 
 SEMVER_PRERELEASE_CORE={ $(LAST_RELEASE_TAG) || echo "v0.0.0"; } | sed 's/^\(v[0-9]*\.[0-9]*\.[0-9]*\).*/\1/'
 SEMVER_PRERELEASE_PRERELEASE=git rev-parse --abbrev-ref HEAD | sed 's/[^a-zA-Z0-9]/--/g'
-SEMVER_PRERELEASE_BUILD=git rev-parse --short HEAD
+SEMVER_PRERELEASE_BUILD=printf '%s-%s' "$$(date -u +%Y%m%d-%H%M%S)" "$$(git rev-parse --short HEAD)"
 
 semver-prerelease:
 	@CORE=$$(echo "$(shell $(SEMVER_PRERELEASE_CORE))" | awk -F. '{print $$1"."$$2"."$$3+1}'); \
