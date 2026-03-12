@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 _program_name="release-management.sh"
 
@@ -23,13 +23,15 @@ semver_prerelease_build() {
 }
 
 semver_prerelease() {
+  local core
   core="$(semver_prerelease_core | awk -F. '{print $1"."$2"."$3+1}')"
 
   echo "$core-$(semver_prerelease_prerelease)+$(semver_prerelease_build)"
 }
 
 validate_semver_version() {
-  _version=$1
+  local _version=${1}
+
   [ -z "${_version}" ] && { echo "VERSION is required" >&2 && exit 1; }
 
   echo "${_version}" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?([+][0-9A-Za-z.-]+)?$' || \
@@ -37,7 +39,8 @@ validate_semver_version() {
 }
 
 validate_version_is_most_recent_in_changelog() {
-  _version="$1"
+  local _version="$1"
+  local _most_recent
   _most_recent=$(awk '/^## \[/{gsub(/^## \[/, ""); gsub(/\].*/, ""); print; exit}' CHANGELOG.md)
 
   [ "${_most_recent}" != "${_version}" ] && {
@@ -55,7 +58,7 @@ validate_changelog_contains_no_unreleased_sections() {
 }
 
 prepare_changelog_for_release() {
-  _version=$1
+  local _version=${1}
 
   validate_semver_version "${_version}"
 
@@ -68,7 +71,9 @@ prepare_changelog_for_release() {
 }
 
 extract_version_notes() {
-  _version=$1
+  local _version=${1}
+  local _notes
+  local _link
 
   validate_semver_version "${_version}"
 
@@ -92,6 +97,7 @@ extract_version_notes() {
 }
 
 prepare_prerelease_and_create_draft_release_on_side_tag() {
+  local _version
   _version="$(semver_prerelease)"
   prepare_changelog_for_release "${_version}" &&
   validate_changelog_contains_no_unreleased_sections &&
@@ -100,6 +106,17 @@ prepare_prerelease_and_create_draft_release_on_side_tag() {
     git commit -m "release ${_version}" &&
     git tag "${_version}" &&
     git reset --hard HEAD~1 &&
+    git push origin "${_version}"
+}
+
+create_release_on_current_branch() {
+  local _version="${1}"
+  prepare_changelog_for_release "${_version}" &&
+  validate_changelog_contains_no_unreleased_sections &&
+  validate_version_is_most_recent_in_changelog "${_version}"
+    git add CHANGELOG.md &&
+    git commit -m "release ${_version}" &&
+    git tag "${_version}" &&
     git push origin "${_version}"
 }
 
@@ -116,6 +133,8 @@ case "$1" in
       extract_version_notes "$2";;
     prepare-prerelease-and-create-draft-release-on-side-tag)
       prepare_prerelease_and_create_draft_release_on_side_tag;;
+    create-release-on-current-branch)
+      create_release_on_current_branch "$2";;
     '')
       echo "missing command" >&2
       exit 1;;
