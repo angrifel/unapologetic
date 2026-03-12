@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `httpspy` package: `RoundTripTracer` for tracing HTTP round trips with connection timing metrics (`NewRoundTripTracer`, `NewRoundTripTracerWithNotification`, `RoundTripTracerStatus`)
+- `iospy` package: `LimitWriterWithError` — a writer that writes to an underlying writer but stops with a specified error after n bytes
+- `release-management.sh` `create-release-on-current-branch` command for releasing directly on the current branch
+
+### Changed
+
+- `release-management.sh` interpreter changed from `sh` to `bash`; added `local` variable declarations throughout for proper scoping
+- Claude Code `update-changelog` skill updated to be self-contained (no longer requires `release-management.sh`), added prerequisites section, scope guidelines, and improved format instructions
+
 ## [v0.1.1] - 2026-03-07
 
 ### Added
@@ -43,5 +56,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MIT license
 - README with project overview, Go Reference documentation link, CI status badge, and license badge
 
+[Unreleased]: https://github.com/angrifel/unapologetic/compare/v0.1.1...master
 [v0.1.1]: https://github.com/angrifel/unapologetic/compare/v0.1.0...v0.1.1
 [v0.1.0]: https://github.com/angrifel/unapologetic/compare/ea00b4371869d02656bbd97841caff4a76bc451d...v0.1.0

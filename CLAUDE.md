@@ -89,6 +89,10 @@ Directives for writing unit tests:
   - Whenever a test requires testing DNS resolution or its metrics, it should override the DNS resolver used by the Dialer involved in the operations. If the latter were not possible, the default resolver should be overridden for the duration of the test.
   - When real I/O cannot produce a specific error condition needed for testing, request instructions on how to proceed before introducing wrappers or adapters. When such deviation is approved, The rationale and the alternatives considered must be written in the test cases so that later examination by humans or agents can effectively understand why such a decision was made. Agents can exercise liberty to document this in code comments in a way that is both intelligible to humans and friendly to itself
 
+### Changelog conventions
+
+- Changes to `internal/` packages are never changelog-worthy — they are not importable outside the module and are invisible to consumers.
+
 ### Testing exclusions
 
 The following files are exempt from having unit tests:
