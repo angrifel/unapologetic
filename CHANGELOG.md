@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `ioaux` package: `ReadSeekBuffer` — a variable-sized read/write buffer combining `bytes.Buffer` and `bytes.Reader`, adding `Seek`, `ReadAt`, and `Size` to the full `bytes.Buffer` API
+- `ioaux` package: `ReadSeekerWithNopCloser` — wraps an `io.ReadSeeker` with a no-op `Close` method, returning an `io.ReadSeekCloser`
+- `ioaux` package: `SeekerFunc` — a function type adapter implementing `io.Seeker`
+
 ## [v0.2.0] - 2026-03-12
 
 ### Added
@@ -56,6 +64,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MIT license
 - README with project overview, Go Reference documentation link, CI status badge, and license badge
 
+[Unreleased]: https://github.com/angrifel/unapologetic/compare/v0.2.0...readseekbuffer
 [v0.2.0]: https://github.com/angrifel/unapologetic/compare/v0.1.1...v0.2.0
 [v0.1.1]: https://github.com/angrifel/unapologetic/compare/v0.1.0...v0.1.1
 [v0.1.0]: https://github.com/angrifel/unapologetic/compare/ea00b4371869d02656bbd97841caff4a76bc451d...v0.1.0

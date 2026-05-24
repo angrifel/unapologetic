@@ -117,6 +117,7 @@ linters:
       - "internal/require/require.go"
       - "internal/ioaux/funcs.go"
       - "internal/assertfunctions/assertfunctions.go"
+      - "ioaux/readseekbuffer.go" # Excluded. It is a merge from bytes.Buffer and bytes.Reader with modifications.
   settings:
     cyclop:
       max-complexity: 32
