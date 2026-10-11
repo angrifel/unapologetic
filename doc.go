@@ -1,6 +1,6 @@
 // Package unapologetic provides a collection of focused packages for Go development.
 //
-// The x packages fill gaps in the Go standard library for bytes, HTTP and I/O.
+// The x packages fill gaps in the Go standard library for bytes, errors, HTTP and I/O.
 // The spy packages observe and control HTTP and I/O behavior for debugging and testing.
 //
 // # Packages
@@ -8,6 +8,13 @@
 // bytesx - Fills gaps in the bytes package:
 //   - ReadSeekBuffer, a read/write buffer combining bytes.Buffer and bytes.Reader
 //   - Keeps bytes already read, so Seek and ReadAt can return to them
+//
+// errorsx - Fills gaps in the errors package by recording where errors originate:
+//   - Capture the stack trace where an error first enters your code
+//   - Keep the original stack trace when errors are wrapped further
+//   - Print stack traces with %+v using the layout of Go panics
+//   - Format stack traces of wrapped errors
+//   - Find every traced error inside joined errors
 //
 // httpx - Fills gaps in the net/http package for responses and round trippers:
 //   - Clone and buffer HTTP response bodies
