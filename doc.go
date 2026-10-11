@@ -5,6 +5,13 @@
 //
 // # Packages
 //
+// errorsaux - Error utilities for recording where errors originate:
+//   - Capture the stack trace where an error first enters your code
+//   - Keep the original stack trace when errors are wrapped further
+//   - Print stack traces with %+v using the layout of Go panics
+//   - Format stack traces of wrapped errors
+//   - Find every traced error inside joined errors
+//
 // httpaux - HTTP utilities for working with responses and round trippers:
 //   - Clone and buffer HTTP response bodies
 //   - Create RoundTripper implementations from functions
