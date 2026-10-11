@@ -22,6 +22,7 @@ make run-github-action
 
 **unapologetic** is a Go utility library (module: `github.com/angrifel/unapologetic`) organized into focused packages that extend the standard library:
 
+- **errorsaux** - Error stack traces: `TraceError`/`TraceResult` capture where an error first entered your code (preserving an existing trace), `StackTrace` extracts it from any error chain, and `%+v` prints it in Go panic layout
 - **httpaux** - HTTP utilities: response cloning (`CloneHTTPResponseWithBody`), body buffering (`BufferResponseBody`), and `RoundTripperFunc` adapter for creating `http.RoundTripper` from functions
 - **httpspy** - HTTP message capture for debugging/logging with configurable header censoring and optional body collection, and `RoundTripTracer` for tracing HTTP round trips with connection timing metrics
 - **ioaux** - I/O adapters: `ReaderFunc`/`SeekerFunc`/`CloserFunc` function adapters, `ReadSeekCloser` for adding seek to `io.ReadCloser`, `ReadSeekerWithNopCloser`, and `ReadSeekBuffer` (`bytes.Buffer` + `Seek`/`ReadAt`/`Size`/`Position`)
