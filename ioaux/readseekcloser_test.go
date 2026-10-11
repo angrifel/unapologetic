@@ -13,6 +13,32 @@ import (
 )
 
 func TestReadSeekCloser(t *testing.T) {
+	t.Run("does not read source readCloser before read or close calls", func(t *testing.T) {
+		// arrange
+		rc := io.NopCloser(strings.NewReader("0123456789abcdef"))
+
+		readerWitness := iospy.WitnessReader(rc)
+		closerWitness := iospy.WitnessCloser(rc)
+		var sourceRC = struct {
+			io.Reader
+			io.Closer
+		}{
+			Reader: readerWitness,
+			Closer: closerWitness,
+		}
+
+		// act
+		rsc := ReadSeekCloser(sourceRC)
+
+		// assert
+		readCalls := readerWitness.(iospy.ReaderWitness).ObservedReadCalls()
+		closeCalls := closerWitness.(iospy.CloserWitness).ObservedCloseCalls()
+
+		assert.IsNotNil(t, rsc)
+		assert.Equal(t, 0, len(readCalls))
+		assert.Equal(t, 0, len(closeCalls))
+	})
+
 	t.Run("successful read and seek operations", func(t *testing.T) {
 		// Test R
 		content := "Hello, World!"

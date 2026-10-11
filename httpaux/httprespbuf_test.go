@@ -38,22 +38,30 @@ func TestBufferResponse(t *testing.T) {
 			resp := BufferResponseBody(originalResponse)
 
 			// assert
+			assert.NotEqual(t, nil, resp)
+
+			// act
+			bodyContent, bodyErr := io.ReadAll(resp.Body)
+
 			readCalls := readerWitness.(iospy.ReaderWitness).ObservedReadCalls()
 			closeCalls := closerWitness.(iospy.CloserWitness).ObservedCloseCalls()
 
-			assert.NotEqual(t, nil, resp)
-			assert.Greater(t, len(readCalls), 1)
-			assert.Equal(t, 1, len(closeCalls))
-			assert.Equal(t, io.EOF, readCalls[len(readCalls)-1].ResultErr)
-			assert.Equal(t, nil, closeCalls[0].ResultErr)
-
-			bodyContent, bodyErr := io.ReadAll(resp.Body)
-
+			readCallAfterReadingContent := len(readCalls)
 			assert.Equal(t, nil, bodyErr)
 			assert.Equal(t, "Hello, World!", string(bodyContent))
+			assert.GreaterOrEqual(t, readCallAfterReadingContent, 1)
+			assert.Equal(t, io.EOF, readCalls[len(readCalls)-1].ResultErr)
+			assert.Equal(t, 0, len(closeCalls))
+
 			closeErr := resp.Body.Close()
 
+			readCalls = readerWitness.(iospy.ReaderWitness).ObservedReadCalls()
+			closeCalls = closerWitness.(iospy.CloserWitness).ObservedCloseCalls()
+
 			assert.Equal(t, nil, closeErr)
+			assert.Equal(t, len(readCalls), readCallAfterReadingContent)
+			assert.Equal(t, 1, len(closeCalls))
+			assert.Equal(t, nil, closeCalls[0].ResultErr)
 		})
 
 		t.Run("with read error and no close error", func(t *testing.T) {
@@ -81,22 +89,32 @@ func TestBufferResponse(t *testing.T) {
 			resp := BufferResponseBody(originalResponse)
 
 			// assert
+			assert.NotEqual(t, nil, resp)
+
+			// act
+			bodyContent, bodyErr := io.ReadAll(resp.Body)
+
+			// assert
 			readCalls := readerWitness.(iospy.ReaderWitness).ObservedReadCalls()
 			closeCalls := closerWitness.(iospy.CloserWitness).ObservedCloseCalls()
+			readCallAfterReadingContent := len(readCalls)
 
-			assert.NotEqual(t, nil, resp)
-			assert.Greater(t, len(readCalls), 1)
-			assert.Equal(t, 1, len(closeCalls))
-			assert.Equal(t, errAtEOF, readCalls[len(readCalls)-1].ResultErr)
-			assert.Equal(t, nil, closeCalls[0].ResultErr)
-
-			bodyContent, bodyErr := io.ReadAll(resp.Body)
 			assert.Equal(t, errAtEOF, bodyErr)
-
 			assert.Equal(t, "Hello, World!", string(bodyContent))
+			assert.GreaterOrEqual(t, readCallAfterReadingContent, 1)
+			assert.Equal(t, errAtEOF, readCalls[len(readCalls)-1].ResultErr)
+			assert.Equal(t, 0, len(closeCalls))
 
+			// act
 			closeErr := resp.Body.Close()
+			readCalls = readerWitness.(iospy.ReaderWitness).ObservedReadCalls()
+			closeCalls = closerWitness.(iospy.CloserWitness).ObservedCloseCalls()
+
+			// assert
 			assert.Equal(t, nil, closeErr)
+			assert.Equal(t, len(readCalls), readCallAfterReadingContent)
+			assert.Equal(t, 1, len(closeCalls))
+			assert.Equal(t, nil, closeCalls[0].ResultErr)
 		})
 
 		t.Run("with no read error but close error", func(t *testing.T) {
@@ -131,20 +149,30 @@ func TestBufferResponse(t *testing.T) {
 			resp := BufferResponseBody(originalResponse)
 
 			// assert
+			assert.IsNotNil(t, resp)
+
+			// act
+			bodyContent, bodyErr := io.ReadAll(resp.Body)
+
 			readCalls := readerWitness.(iospy.ReaderWitness).ObservedReadCalls()
 			closeCalls := closerWitness.(iospy.CloserWitness).ObservedCloseCalls()
 
-			assert.NotEqual(t, nil, resp)
-			assert.Greater(t, len(readCalls), 1)
-			assert.Equal(t, 1, len(closeCalls))
+			readCallAfterReadingContent := len(readCalls)
+			require.Greater(t, readCallAfterReadingContent, 1)
 			assert.Equal(t, io.EOF, readCalls[len(readCalls)-1].ResultErr)
-			assert.Equal(t, cErr, closeCalls[0].ResultErr)
-
-			bodyContent, bodyErr := io.ReadAll(resp.Body)
-			assert.Equal(t, nil, bodyErr)
+			assert.IsNil(t, bodyErr)
 			assert.Equal(t, "Hello, World!", string(bodyContent))
+
+			// act
 			closeErr := resp.Body.Close()
+
+			// assert
+			readCalls = readerWitness.(iospy.ReaderWitness).ObservedReadCalls()
+			closeCalls = closerWitness.(iospy.CloserWitness).ObservedCloseCalls()
 			assert.Equal(t, cErr, closeErr)
+			assert.Equal(t, len(readCalls), readCallAfterReadingContent)
+			require.Equal(t, 1, len(closeCalls))
+			assert.Equal(t, cErr, closeCalls[0].ResultErr)
 		})
 
 		t.Run("with both read and close errors", func(t *testing.T) {
@@ -181,20 +209,30 @@ func TestBufferResponse(t *testing.T) {
 			resp := BufferResponseBody(originalResponse)
 
 			// assert
-			readerCalls := readerWitness.(iospy.ReaderWitness).ObservedReadCalls()
-			closeCalls := closerWitness.(iospy.CloserWitness).ObservedCloseCalls()
-
 			require.IsNotNil(t, resp)
-			assert.Greater(t, len(readerCalls), 1)
-			assert.Equal(t, 1, len(closeCalls))
-			assert.Equal(t, errAtEOF, readerCalls[len(readerCalls)-1].ResultErr)
-			assert.Equal(t, cErr, closeCalls[0].ResultErr)
 
 			bodyContent, bodyErr := io.ReadAll(resp.Body)
-			assert.Equal(t, errAtEOF, bodyErr)
+
+			readCalls := readerWitness.(iospy.ReaderWitness).ObservedReadCalls()
+			closeCalls := closerWitness.(iospy.CloserWitness).ObservedCloseCalls()
+
+			readCallAfterReadingContent := len(readCalls)
 			assert.Equal(t, "Hello, World!", string(bodyContent))
+			assert.Equal(t, errAtEOF, bodyErr)
+			assert.GreaterOrEqual(t, len(readCalls), 1)
+			assert.Equal(t, errAtEOF, readCalls[len(readCalls)-1].ResultErr)
+
+			// act
 			closeErr := resp.Body.Close()
+
+			// assert
+			readCalls = readerWitness.(iospy.ReaderWitness).ObservedReadCalls()
+			closeCalls = closerWitness.(iospy.CloserWitness).ObservedCloseCalls()
+
 			assert.Equal(t, cErr, closeErr)
+			assert.Equal(t, len(readCalls), readCallAfterReadingContent)
+			assert.Equal(t, 1, len(closeCalls))
+			assert.Equal(t, cErr, closeCalls[0].ResultErr)
 		})
 	})
 }
