@@ -113,7 +113,6 @@ linters:
     warn-unused: true
     paths:
       - "_test.go"
-      - "internal/assert/assert.go"
       - "internal/require/require.go"
       - "internal/ioaux/funcs.go"
       - "internal/assertfunctions/assertfunctions.go"
