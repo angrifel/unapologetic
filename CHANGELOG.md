@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.2.2-errorsaux+20261014-043855-a6aac59] - 2026-10-14
+
+### Added
+
+- `errorsaux` package: `TraceError` and `TraceResult` — wrap an error with the caller's stack trace (up to 64 frames), returning the error unchanged when its chain already carries a stack trace; traced errors keep their message and support `errors.Is`, `errors.As` and `errors.Unwrap`
+- `errorsaux` package: `StackTrace`, `TracedError` and `TracedErrors` — retrieve the stack trace and the traced error(s) from an error tree, including every traced error inside joined errors; any error with a `StackTrace() []uintptr` method is recognized
+- `errorsaux` package: `FormatStackTrace` — render a stack trace using the layout of Go panics, omitting Go runtime frames; traced errors print their stack trace when formatted with `%+v`
+
+### Changed
+
+- `ioaux` package: `ReadSeekCloser` now reads the wrapped `io.ReadCloser` on demand, buffering only the bytes read so far, and closes it only when `Close` is called (previously it read the whole content and closed the source on construction); seeking relative to `io.SeekEnd` is now relative to the bytes read so far
+- `httpaux` package: `BufferResponseBody` no longer reads or closes the original response body when called; the body is read as the returned body is read and closed when it is closed
+
 ## [v0.2.1] - 2026-05-24
 
 ### Added
@@ -64,6 +77,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MIT license
 - README with project overview, Go Reference documentation link, CI status badge, and license badge
 
+[v0.2.2-errorsaux+20261014-043855-a6aac59]: https://github.com/angrifel/unapologetic/compare/v0.2.1...v0.2.2-errorsaux+20261014-043855-a6aac59
 [v0.2.1]: https://github.com/angrifel/unapologetic/compare/v0.2.0...v0.2.1
 [v0.2.0]: https://github.com/angrifel/unapologetic/compare/v0.1.1...v0.2.0
 [v0.1.1]: https://github.com/angrifel/unapologetic/compare/v0.1.0...v0.1.1
