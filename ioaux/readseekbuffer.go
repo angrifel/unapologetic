@@ -10,19 +10,21 @@ import (
 // smallBufferSize is an initial allocation minimal capacity.
 const smallBufferSize = 64
 
-// A ReadSeekBuffer is a variable-sized buffer of bytes with [SeekBuffer.Read] and [SeekBuffer.Write] methods.
+// A ReadSeekBuffer is a variable-sized buffer of bytes with [ReadSeekBuffer.Read] and [ReadSeekBuffer.Write] methods.
 // The zero value for ReadSeekBuffer is an empty buffer ready to use.
 // ReadSeekBuffer's implementation is a copy of golang stdlib bytes.Buffer
 // with the addition of a Size, ReadAt, Seek methods from the bytes.Reader.
+// Unlike bytes.Buffer, bytes already read are kept so that Seek and ReadAt can return to them;
+// they are only discarded by [ReadSeekBuffer.Reset] and [ReadSeekBuffer.Truncate].
 type ReadSeekBuffer struct {
 	buf      []byte // contents are the bytes buf[off : len(buf)]
 	off      int    // read at &buf[off], write at &buf[len(buf)]
 	lastRead readOp // last read operation, so that Unread* can work correctly.
 }
 
-// Size returns the original length of the underlying byte slice.
+// Size returns the length of the underlying byte slice, including bytes already read.
 // Size is the number of bytes available for reading via [ReadSeekBuffer.ReadAt].
-// The result is unaffected by any method calls except [ReadSeekBuffer.Reset].
+// Writes increase it, while [ReadSeekBuffer.Truncate] and [ReadSeekBuffer.Reset] decrease it.
 func (r *ReadSeekBuffer) Size() int64 { return int64(len(r.buf)) }
 
 // ReadAt implements the [io.ReaderAt] interface.
@@ -87,7 +89,7 @@ const maxInt = int(^uint(0) >> 1)
 
 // Bytes returns a slice of length b.Len() holding the unread portion of the buffer.
 // The slice is valid for use only until the next buffer modification (that is,
-// only until the next call to a method like [ReadSeekBuffer.Read], [ReadSeekableBuffer.Write], [ReadSeekBuffer.Reset], or [Buffer.Truncate]).
+// only until the next call to a method like [ReadSeekBuffer.Read], [ReadSeekBuffer.Write], [ReadSeekBuffer.Reset], or [ReadSeekBuffer.Truncate]).
 // The slice aliases the buffer content at least until the next buffer modification,
 // so immediate changes to the slice will affect the result of future reads.
 func (b *ReadSeekBuffer) Bytes() []byte { return b.buf[b.off:] }
@@ -163,11 +165,7 @@ func (b *ReadSeekBuffer) tryGrowByReslice(n int) (int, bool) {
 // It returns the index where bytes should be written.
 // If the buffer can't grow it will panic with ErrTooLarge.
 func (b *ReadSeekBuffer) grow(n int) int {
-	m := b.Len()
-	// If buffer is empty, reset to recover space.
-	if m == 0 && b.off != 0 {
-		b.Reset()
-	}
+	l := len(b.buf)
 	// Try to grow by means of a reslice.
 	if i, ok := b.tryGrowByReslice(n); ok {
 		return i
@@ -176,23 +174,13 @@ func (b *ReadSeekBuffer) grow(n int) int {
 		b.buf = make([]byte, n, smallBufferSize)
 		return 0
 	}
-	c := cap(b.buf)
-	if n <= c/2-m {
-		// We can slide things down instead of allocating a new
-		// slice. We only need m+n <= c to slide, but
-		// we instead let capacity get twice as large so we
-		// don't spend all our time copying.
-		copy(b.buf, b.buf[b.off:])
-	} else if c > maxInt-c-n {
+	if c := cap(b.buf); c > maxInt-c-n {
 		panic(ErrTooLarge)
-	} else {
-		// Add b.off to account for b.buf[:b.off] being sliced off the front.
-		b.buf = growSlice(b.buf[b.off:], b.off+n)
 	}
-	// Restore b.off and len(b.buf).
-	b.off = 0
-	b.buf = b.buf[:m+n]
-	return m
+	// Bytes before b.off are kept, so that Seek can return to them.
+	b.buf = growSlice(b.buf, n)
+	b.buf = b.buf[:l+n]
+	return l
 }
 
 // Grow grows the buffer's capacity, if necessary, to guarantee space for
@@ -312,8 +300,6 @@ func (b *ReadSeekBuffer) WriteTo(w io.Writer) (n int64, err error) {
 			return n, io.ErrShortWrite
 		}
 	}
-	// Buffer is now empty; reset.
-	b.Reset()
 	return n, nil
 }
 
@@ -357,7 +343,7 @@ func (b *ReadSeekBuffer) WriteRune(r rune) (n int, err error) {
 func (b *ReadSeekBuffer) Read(p []byte) (n int, err error) {
 	b.lastRead = opInvalid
 	if b.empty() {
-		// A modification from the original implementation is that here spaced was recovered
+		// A modification from the original implementation is that here space was recovered
 		// using Reset(). this optimization had unwanted side-effects for the
 		// merging of bytes.Buffer and bytes.Reader functionality
 		if len(p) == 0 {
@@ -395,8 +381,6 @@ func (b *ReadSeekBuffer) Next(n int) []byte {
 // If no byte is available, it returns error [io.EOF].
 func (b *ReadSeekBuffer) ReadByte() (byte, error) {
 	if b.empty() {
-		// Buffer is empty, reset to recover space.
-		b.Reset()
 		return 0, io.EOF
 	}
 	c := b.buf[b.off]
@@ -412,8 +396,6 @@ func (b *ReadSeekBuffer) ReadByte() (byte, error) {
 // consumes one byte and returns U+FFFD, 1.
 func (b *ReadSeekBuffer) ReadRune() (r rune, size int, err error) {
 	if b.empty() {
-		// Buffer is empty, reset to recover space.
-		b.Reset()
 		return 0, 0, io.EOF
 	}
 	c := b.buf[b.off]

@@ -642,24 +642,40 @@ func TestUnreadByte(t *testing.T) {
 	}
 }
 
-// Tests that we occasionally compact. Issue 5154.
+// Tests that growing never discards bytes already read, so that Seek can return to them,
+// and that the capacity stays proportional to the content kept. Replaces the bytes.Buffer
+// compaction test for Issue 5154, since compaction discards bytes already read.
 func TestBufferGrowth(t *testing.T) {
 	var b ReadSeekBuffer
-	buf := make([]byte, 1024)
-	b.Write(buf[0:1])
-	var cap0 int
+	chunk := make([]byte, 1024)
+	readBuf := make([]byte, 1024)
+	var want []byte
+	b.Write(chunk[0:1])
+	want = append(want, chunk[0:1]...)
 	for i := 0; i < 5<<10; i++ {
-		b.Write(buf)
-		b.Read(buf)
-		if i == 0 {
-			cap0 = b.Cap()
+		for j := range chunk {
+			chunk[j] = byte(i + j)
 		}
+		b.Write(chunk)
+		want = append(want, chunk...)
+		b.Read(readBuf)
 	}
-	cap1 := b.Cap()
-	// (*ReadSeekableBuffer).grow allows for 2x capacity slop before sliding,
-	// so set our error threshold at 3x.
-	if cap1 > cap0*3 {
-		t.Errorf("buffer cap = %d; too big (grew from %d)", cap1, cap0)
+	if got := b.Size(); got != int64(len(want)) {
+		t.Fatalf("buffer size = %d; want %d", got, len(want))
+	}
+	// grow allows for 2x capacity slop, so set our error threshold at 3x.
+	if c := b.Cap(); c > 3*len(want) {
+		t.Errorf("buffer cap = %d; too big for %d bytes kept", c, len(want))
+	}
+	if _, err := b.Seek(0, io.SeekStart); err != nil {
+		t.Fatalf("Seek: %v", err)
+	}
+	got, err := io.ReadAll(&b)
+	if err != nil {
+		t.Fatalf("ReadAll: %v", err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Errorf("content after Seek(0) differs from content written (got %d bytes, want %d)", len(got), len(want))
 	}
 }
 

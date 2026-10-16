@@ -21,7 +21,7 @@ func (b *readSeekCloser) Read(p []byte) (n int, err error) {
 		return
 	}
 
-	// We've the p buffer has some capacity left, we fill remaining bytes from the source
+	// The p buffer has some capacity left, we fill remaining bytes from the source
 	// and perform accounting & seeking on the actual number of bytes read.
 	bytesRead := n
 	n, err = b.source.Read(p[bytesRead:])
