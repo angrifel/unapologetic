@@ -8,6 +8,14 @@
 //     to be used directly as readers without defining custom types.
 //   - CloserFunc: A function adapter that implements io.Closer, enabling functions
 //     to serve as closers for resource cleanup.
-//   - ReadSeekCloser: Wraps an io.ReadCloser into an io.ReadSeekCloser by buffering
-//     content in memory, adding seeking capabilities while preserving error semantics.
+//   - SeekerFunc: A function adapter that implements io.Seeker.
+//   - ReadSeekCloser: Wraps an io.ReadCloser into an io.ReadSeekCloser. Content is read
+//     from the wrapped io.ReadCloser on demand and buffered in memory as it is read, so
+//     bytes already read can be read again by seeking. Read and Close errors from the
+//     wrapped io.ReadCloser are returned unchanged.
+//   - ReadSeekerWithNopCloser: Wraps an io.ReadSeeker with a no-op Close method,
+//     returning an io.ReadSeekCloser.
+//   - ReadSeekBuffer: A variable-sized read/write buffer that combines bytes.Buffer and
+//     bytes.Reader. It provides the full bytes.Buffer API plus Seek, ReadAt, and Size.
+//     Unlike bytes.Buffer, bytes already read are kept so Seek and ReadAt can return to them.
 package ioaux

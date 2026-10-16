@@ -16,14 +16,15 @@
 //   - Non-destructive snapshots that preserve original message state
 //
 // ioaux - I/O auxiliary utilities and adapters:
-//   - Function adapters (ReaderFunc, CloserFunc) for implementing io interfaces
-//   - ReadSeekCloser for adding seek capabilities to io.ReadCloser
-//   - Memory-backed I/O wrappers with error preservation
+//   - Function adapters (ReaderFunc, SeekerFunc, CloserFunc) for implementing io interfaces
+//   - ReadSeekCloser for adding seek capabilities to io.ReadCloser, buffering content as it is read
+//   - ReadSeekerWithNopCloser for turning an io.ReadSeeker into an io.ReadSeekCloser
+//   - ReadSeekBuffer, a read/write buffer combining bytes.Buffer and bytes.Reader
 //
 // iospy - Testing utilities for observing and controlling I/O behavior:
 //   - Witness wrappers for recording Read() and Close() calls
 //   - Custom EOF error replacement for testing error paths
-//   - Limited readers with configurable error behavior
+//   - Limited readers and writers with configurable error behavior
 //
 // # Design Philosophy
 //

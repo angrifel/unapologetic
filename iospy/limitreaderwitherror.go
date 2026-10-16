@@ -22,7 +22,7 @@ func (l *limitedReaderWithError) Read(p []byte) (n int, err error) {
 }
 
 // LimitReaderWithError returns a Reader that reads from r but stops with a specific error after n bytes.
-// This function is similar in spirit io.LimitReader but with the ability to control the error once
+// This function is similar in spirit to io.LimitReader but with the ability to control the error once
 // the limit has been reached.
 //
 // Invoking LimitReaderWithError with an error = io.EOF should be the same as using io.LimitReader.

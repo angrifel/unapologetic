@@ -1,4 +1,4 @@
-.PHONY: git-rev-list-last-release-commit git-log-since-last-release check-go check-godoc check-docker check-act install-godoc view-godoc-locally install-git-hooks docker-golangci-lint lint-nocache lint test run-github-action
+.PHONY: git-rev-list-last-release-commit git-log-since-last-release check-go check-godoc check-docker check-act install-godoc view-godoc-locally install-git-hooks docker-golangci-lint lint-nocache lint tidy test run-github-action
 
 GOLANGCI_LINT_VERSION=v2.3.1
 

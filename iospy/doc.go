@@ -1,9 +1,10 @@
-// Package iospy provides testing utilities for observing and controlling io.Reader and io.Closer behavior.
+// Package iospy provides testing utilities for observing and controlling io.Reader, io.Writer, and io.Closer behavior.
 //
 // This package offers tools for instrumenting I/O operations during testing, allowing you to:
 //   - Record and inspect Read() and Close() method calls (witness pattern)
 //   - Replace EOF errors with custom errors for testing error handling
 //   - Create limited readers that return specific errors when limits are reached
+//   - Create limited writers that return specific errors when limits are reached
 //
 // # Witness Types
 //
@@ -30,4 +31,10 @@
 //
 //	reader := iospy.LimitReaderWithError(r, 100, customErr)
 //	// After 100 bytes, returns customErr instead of EOF
+//
+// LimitWriterWithError does the same for writes: it writes to an underlying writer and
+// returns the specified error once n bytes have been written:
+//
+//	writer := iospy.LimitWriterWithError(w, 100, customErr)
+//	// Writes beyond 100 bytes are cut off and return customErr
 package iospy

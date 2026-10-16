@@ -23,12 +23,12 @@ make run-github-action
 **unapologetic** is a Go utility library (module: `github.com/angrifel/unapologetic`) organized into focused packages that extend the standard library:
 
 - **httpaux** - HTTP utilities: response cloning (`CloneHTTPResponseWithBody`), body buffering (`BufferResponseBody`), and `RoundTripperFunc` adapter for creating `http.RoundTripper` from functions
-- **httpspy** - HTTP message capture for debugging/logging with configurable header censoring and optional body collection
-- **ioaux** - I/O adapters: `ReaderFunc`/`CloserFunc` function adapters, `ReadSeekCloser` for adding seek to `io.ReadCloser`
-- **iospy** - Testing utilities: witness wrappers (`WitnessReader`, `WitnessCloser`) for recording I/O calls, `ReaderWithEOFError` for custom EOF replacement, `LimitReaderWithError`
+- **httpspy** - HTTP message capture for debugging/logging with configurable header censoring and optional body collection, and `RoundTripTracer` for tracing HTTP round trips with connection timing metrics
+- **ioaux** - I/O adapters: `ReaderFunc`/`SeekerFunc`/`CloserFunc` function adapters, `ReadSeekCloser` for adding seek to `io.ReadCloser`, `ReadSeekerWithNopCloser`, and `ReadSeekBuffer` (`bytes.Buffer` + `Seek`/`ReadAt`/`Size`)
+- **iospy** - Testing utilities: witness wrappers (`WitnessReader`, `WitnessCloser`) for recording I/O calls, `ReaderWithEOFError` for custom EOF replacement, `LimitReaderWithError`, `LimitWriterWithError`
 - **internal/assert** - Internal test assertion helpers (for non-critical assertions)
 - **internal/assertfunctions** - Internal shared assertion function implementations used by assert and require
-- **internal/ioaux** - Internal I/O adapters: `ReaderFunc`/`CloserFunc` function adapters (internal counterpart of public ioaux)
+- **internal/ioaux** - Internal I/O adapters: `ReaderFunc`/`SeekerFunc`/`CloserFunc` function adapters (internal counterpart of public ioaux)
 - **internal/require** - Internal test assertion helpers (for critical assertions)
 - **internal/netaux** - Network test utilities: embedded DNS server for resolver testing
 - **internal/testaux** - Internal test utilities
@@ -68,7 +68,7 @@ Documentation is crucial to enable effective adoption of this code library. Here
 - **Version control**: Keep documentation up-to-date with changes to the codebase. Update documentation whenever you make changes to the code or add new features.
 
 ### Internal dependencies:
-Some internal dependencies MUST NEVER be added to the project. The following is a exhausitve list of depdencies that must NEVER exist, the dependencie will be listed in the form `A -> B`, where `A` is the consuming package and `B` is the consumed package.
+Some internal dependencies MUST NEVER be added to the project. The following is an exhaustive list of dependencies that must NEVER exist, the dependencies will be listed in the form `A -> B`, where `A` is the consuming package and `B` is the consumed package.
 
 **Forbidden dependencies:**
 - `iospy -> ioaux`
@@ -76,7 +76,7 @@ Some internal dependencies MUST NEVER be added to the project. The following is 
 
 ## Testing Instructions
 
-Testing should be performed using the `make test` command, which runs all tests with race detection and coverage. Other methods of running test should be avoided as they are not through enough to provide adequate results.
+Testing should be performed using the `make test` command, which runs all tests with race detection and coverage. Other methods of running test should be avoided as they are not thorough enough to provide adequate results.
 
 Directives for writing unit tests:
 - NEVER take dependencies on external libraries.

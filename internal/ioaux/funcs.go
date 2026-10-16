@@ -26,5 +26,5 @@ func (rf ReaderFunc) Read(p []byte) (n int, err error) { return rf(p) }
 // Seek calls the underlying function and returns its result.
 func (f SeekerFunc) Seek(offset int64, whence int) (int64, error) { return f(offset, whence) }
 
-// Close calls the underlying function returns any error it produces.
+// Close calls the underlying function and returns any error it produces.
 func (cf CloserFunc) Close() error { return cf() }

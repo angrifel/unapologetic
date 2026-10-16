@@ -6,10 +6,12 @@ import (
 	"github.com/angrifel/unapologetic/ioaux"
 )
 
-// BufferResponseBody drains and closes the response body. The response body is replaced with an in-memory io.ReadCloser
-// that returns the content of the response.
-// Any errors occurring while reading or closing the original body are
-// retained are returned back by the in-memory io.ReadCloser.
+// BufferResponseBody returns a copy of resp whose body is wrapped with [ioaux.ReadSeekCloser].
+// The original body is read on demand and its content is buffered in memory as it is read,
+// so bytes already read can be read again by seeking. The returned body implements [io.Seeker]
+// and can be type-asserted to it. Closing the returned body closes the original body.
+// Errors returned by the original body's Read and Close methods are returned unchanged by the
+// returned body's Read and Close methods.
 func BufferResponseBody(resp *http.Response) *http.Response {
 	newBody := ioaux.ReadSeekCloser(resp.Body)
 	result := CloneHTTPResponseWithBody(resp, newBody)

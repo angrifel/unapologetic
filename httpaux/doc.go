@@ -15,15 +15,17 @@
 //
 // # Response Buffering
 //
-// BufferResponseBody reads the entire response body into memory and replaces it with
-// a seekable, reusable reader. This is useful when you need to read the body multiple times:
+// BufferResponseBody replaces the response body with a seekable reader that buffers content
+// in memory as it is read. This is useful when you need to read the body multiple times:
 //
 //	resp, _ := http.Get(url)
 //	buffered := httpaux.BufferResponseBody(resp)
-//	// Can now read buffered.Body multiple times
+//	data, _ := io.ReadAll(buffered.Body)
+//	_, _ = buffered.Body.(io.Seeker).Seek(0, io.SeekStart)
+//	// buffered.Body can now be read again
 //
-// The original body is properly closed, and any read or close errors are preserved
-// and returned by the buffered body.
+// The original body is read on demand, not up front, and is closed when the buffered body
+// is closed. Any read or close errors from the original body are returned by the buffered body.
 //
 // # RoundTripper Adapter
 //
