@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.2.2] - 2026-10-16
+
+### Changed
+
+- `ioaux` package: `ReadSeekCloser` now reads from the wrapped `io.ReadCloser` lazily, buffering content as it is read instead of draining and closing it on construction; `Close` now closes the wrapped `io.ReadCloser` and returns its error
+- `httpaux` package: `BufferResponseBody` no longer drains and closes the original response body up front; the body is read on demand and closed when the returned body is closed
+
+### Fixed
+
+- `ioaux` package: `ReadSeekBuffer` no longer discards bytes already read when growing or when reads reach the end of the buffer, so `Seek` and `ReadAt` can always return to them
+
 ## [v0.2.1] - 2026-05-24
 
 ### Added
@@ -64,6 +75,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MIT license
 - README with project overview, Go Reference documentation link, CI status badge, and license badge
 
+[v0.2.2]: https://github.com/angrifel/unapologetic/compare/v0.2.1...v0.2.2
 [v0.2.1]: https://github.com/angrifel/unapologetic/compare/v0.2.0...v0.2.1
 [v0.2.0]: https://github.com/angrifel/unapologetic/compare/v0.1.1...v0.2.0
 [v0.1.1]: https://github.com/angrifel/unapologetic/compare/v0.1.0...v0.1.1
