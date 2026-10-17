@@ -48,7 +48,7 @@ func BuildDNSResponse(query DNSMessage, records []DNSRecord) DNSMessage {
 		resp.Header.Flags |= RCodeNXDomain
 	}
 
-	resp.Header.ANCount = uint16(len(resp.Answers)) //nolint:gosec // because of the total size of DNS answers this is not a relevante concern
+	resp.Header.ANCount = uint16(len(resp.Answers)) //nolint:gosec // because of the total size of DNS answers this is not a relevant concern
 
 	return resp
 }

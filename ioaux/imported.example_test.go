@@ -36,7 +36,7 @@ func ExampleSeekerFunc() {
 
 func ExampleCloserFunc() {
 	closer := ioaux.CloserFunc(func() error {
-		// you custom io.Closer logic here
+		// your custom io.Closer logic here
 		return nil
 	})
 
