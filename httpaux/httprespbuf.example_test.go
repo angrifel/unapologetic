@@ -15,9 +15,14 @@ func ExampleBufferResponseBody() {
 
 	resp := httpaux.BufferResponseBody(recorder.Result())
 
-	// Body can now be read multiple times via seeking
 	body, _ := io.ReadAll(resp.Body)
 	fmt.Println(string(body))
+
+	// Seek back to the start and read the body again.
+	_, _ = resp.Body.(io.Seeker).Seek(0, io.SeekStart)
+	body, _ = io.ReadAll(resp.Body)
+	fmt.Println(string(body))
 	// Output:
+	// buffered content
 	// buffered content
 }
