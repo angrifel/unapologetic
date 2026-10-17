@@ -278,7 +278,13 @@ func (rtt *RoundTripTracer) TraceResponse(response *http.Response) *http.Respons
 // The error is stored and timing fields (ReceiveTime, CloseTime) are set to mark when
 // the error occurred. The RoundTripError status bit is set and notifications are sent
 // if configured.
+//
+// TraceRoundTripError panics if err is nil.
 func (rtt *RoundTripTracer) TraceRoundTripError(err error) {
+	if err == nil {
+		panic("httpspy.RoundTripTracer.TraceRoundTripError: nil error")
+	}
+
 	now := time.Now()
 	start := loadValue[time.Time](&rtt.start)
 
@@ -303,15 +309,15 @@ func (rtt *RoundTripTracer) Status() RoundTripTracerStatus {
 		TLSHandshakeTime:       time.Duration(rtt.tlsHandshakeTime.Load()),
 		ConnectionTime:         time.Duration(rtt.connectionTime.Load()),
 		SendTime:               time.Duration(rtt.sendTime.Load()),
-		SendError:              loadValue[error](&rtt.sendError),
+		SendError:              loadError(&rtt.sendError),
 		FirstByteTime:          time.Duration(rtt.timeToFirstByteTime.Load()),
 		ResponseBodyBytesRead:  int(rtt.responseBodyBytesRead.Load()),
 		ReceiveTime:            time.Duration(rtt.receiveTime.Load()),
 		CloseTime:              time.Duration(rtt.closeTime.Load()),
 		StatusCode:             int(rtt.statusCode.Load()),
-		RoundTripError:         loadValue[error](&rtt.roundTripError),
-		ResponseBodyReadError:  loadValue[error](&rtt.responseBodyReadError),
-		ResponseBodyCloseError: loadValue[error](&rtt.responseBodyCloseError),
+		RoundTripError:         loadError(&rtt.roundTripError),
+		ResponseBodyReadError:  loadError(&rtt.responseBodyReadError),
+		ResponseBodyCloseError: loadError(&rtt.responseBodyCloseError),
 	}
 }
 
@@ -323,6 +329,17 @@ func loadValue[T any](v *atomic.Value) T {
 	var zero T
 
 	return zero
+}
+
+// loadError returns the error stored in v, or nil if none has been stored.
+// Errors are stored as *error because atomic.Value requires every stored value to have the same
+// concrete type and does not accept nil, while errors of different types (or nil) can be recorded.
+func loadError(v *atomic.Value) error {
+	if p := loadValue[*error](v); p != nil {
+		return *p
+	}
+
+	return nil
 }
 
 func (rtt *RoundTripTracer) updateStatusBitsAndNotify(flag TraceEvent) {

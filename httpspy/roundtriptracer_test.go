@@ -411,7 +411,140 @@ func TestTraceRoundTripError_SetsStatusBit(t *testing.T) {
 	assert.NotEqual(t, TraceEvent(0), statusBits&RoundTripError)
 }
 
+func TestTraceRoundTripError_NilError_Panics(t *testing.T) {
+	// arrange
+	tracer := NewRoundTripTracer()
+
+	// act
+	panicVal := func() (panicVal any) {
+		defer func() { panicVal = recover() }()
+		tracer.TraceRoundTripError(nil)
+
+		return nil
+	}()
+
+	// assert
+	assert.Equal(t, any("httpspy.RoundTripTracer.TraceRoundTripError: nil error"), panicVal)
+	assert.Equal(t, TraceEvent(0), TraceEvent(tracer.statusBits.Load()))
+}
+
+func TestStatus_AfterRoundTripError_ReturnsError(t *testing.T) {
+	tests := []struct {
+		name             string
+		notificationMask TraceEvent
+	}{
+		{name: "without notifications", notificationMask: 0},
+		{name: "with RoundTripError notification", notificationMask: RoundTripError},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// arrange: a listener that is closed right away, so dialing it is refused
+			listener, err := net.Listen("tcp", "127.0.0.1:0")
+			assert.IsNil(t, err)
+			address := listener.Addr().String()
+			assert.IsNil(t, listener.Close())
+
+			notifications := make(chan RoundTripTracerStatus, 100)
+			tracer := NewRoundTripTracerWithNotification(tt.notificationMask, notifications)
+			req, err := http.NewRequest(http.MethodGet, "http://"+address, nil)
+			assert.IsNil(t, err)
+
+			req = tracer.TraceRequest(req)
+			_, roundTripErr := http.DefaultTransport.RoundTrip(req)
+			assert.IsNotNil(t, roundTripErr)
+
+			// act
+			var status RoundTripTracerStatus
+			panicVal := func() (panicVal any) {
+				defer func() { panicVal = recover() }()
+				tracer.TraceRoundTripError(roundTripErr)
+				status = tracer.Status()
+
+				return nil
+			}()
+
+			// assert
+			if panicVal != nil {
+				t.Fatalf("recording and reading the round-trip error panicked: %v", panicVal)
+			}
+
+			assert.Equal(t, roundTripErr, status.RoundTripError)
+		})
+	}
+}
+
+func TestTraceResponse_BodyReadErrorsOfDifferentTypes_RecordsReadError(t *testing.T) {
+	// The tracer keeps the body read error in an atomic.Value, which panics when a later Store uses a
+	// different concrete type than an earlier one. A body can legitimately return errors of different
+	// types on successive Read calls (e.g., when another layer wraps some of them), so the tracer must
+	// cope with that.
+	//
+	// Rationale for using ioaux.ReaderFunc: a real net/http response body cannot produce this sequence.
+	// Once it fails, it returns the same error on every later Read, and its other errors (such as a read
+	// after Close) share the same concrete type (*errors.errorString).
+	tests := []struct {
+		name             string
+		notificationMask TraceEvent
+	}{
+		{name: "without notifications", notificationMask: 0},
+		// Status() is also called while each error is recorded, to build the notification.
+		{name: "with BodyReadError notification", notificationMask: BodyReadError},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// arrange
+			readErrs := []error{io.ErrUnexpectedEOF, fmt.Errorf("wrapped: %w", io.ErrUnexpectedEOF)}
+			notifications := make(chan RoundTripTracerStatus, 100)
+			tracer := NewRoundTripTracerWithNotification(tt.notificationMask, notifications)
+			tracer.start.Store(time.Now())
+			resp := tracer.TraceResponse(&http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(ioaux.ReaderFunc(func(_ []byte) (int, error) {
+					err := readErrs[0]
+					if len(readErrs) > 1 {
+						readErrs = readErrs[1:]
+					}
+
+					return 0, err
+				})),
+			})
+
+			// act
+			var status RoundTripTracerStatus
+			panicVal := func() (panicVal any) {
+				defer func() { panicVal = recover() }()
+				_, _ = resp.Body.Read(make([]byte, 1))
+				_, _ = resp.Body.Read(make([]byte, 1))
+				status = tracer.Status()
+
+				return nil
+			}()
+
+			// assert
+			if panicVal != nil {
+				t.Fatalf("recording and reading the body read errors panicked: %v", panicVal)
+			}
+
+			// Both errors wrap io.ErrUnexpectedEOF, so this holds whichever of them is reported.
+			assert.Equal(t, true, errors.Is(status.ResponseBodyReadError, io.ErrUnexpectedEOF))
+		})
+	}
+}
+
 // Group 5: Status() Tests
+
+func TestStatus_BeforeAnyEvent_ReturnsZeroStatus(t *testing.T) {
+	// arrange
+	tracer := NewRoundTripTracer()
+
+	// act
+	status := tracer.Status()
+
+	// assert
+	assert.Equal(t, RoundTripTracerStatus{}, status)
+}
 
 func TestStatus_ReturnsAllTimingFields(t *testing.T) {
 	// arrange

@@ -26,7 +26,7 @@ func IsNil(t TestingT, value any, messageAndArgs ...interface{}) {
 		prefix = fmt.Sprintf(fmt.Sprint(messageAndArgs[0]), messageAndArgs[1:]...)
 	}
 
-	if nil != value && !reflect.ValueOf(value).IsNil() {
+	if nil != value && !reflectIsNil(value) {
 		t.Logf("%s\nexpected:----------------------------\n%v\n-----got:----------------------------\n%v\n-------------------------------------", prefix, nil, value)
 		t.Fail()
 	}
@@ -41,7 +41,7 @@ func IsNotNil(t TestingT, value any, messageAndArgs ...interface{}) {
 		prefix = fmt.Sprintf(fmt.Sprint(messageAndArgs[0]), messageAndArgs[1:]...)
 	}
 
-	if nil == value || reflect.ValueOf(value).IsNil() {
+	if nil == value || reflectIsNil(value) {
 		t.Logf("%s\nexpected:----------------------------\n%v\n-----got:----------------------------\n%v\n-------------------------------------", prefix, "not nil", value)
 		t.Fail()
 	}
@@ -164,5 +164,18 @@ func GreaterOrEqual[T cmp.Ordered](t TestingT, actual, minValue T, messageAndArg
 	if actual < minValue {
 		t.Logf("%s\nexpected:----------------------------\n%v to be greater than or equal to %v\n-----got:----------------------------\n%v\n-------------------------------------", prefix, actual, minValue, actual)
 		t.Fail()
+	}
+}
+
+func reflectIsNil(v any) bool {
+	switch value := reflect.ValueOf(v); value.Kind() {
+	case
+		reflect.Chan, reflect.Func,
+		reflect.Interface, reflect.Map,
+		reflect.Ptr, reflect.Slice, reflect.UnsafePointer:
+
+		return value.IsNil()
+	default:
+		return false
 	}
 }
