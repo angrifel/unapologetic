@@ -76,6 +76,7 @@ type RoundTripTracer struct {
 	responseBodyReadError  atomic.Value
 	responseBodyCloseError atomic.Value
 	statusBits             atomic.Uint64
+	lastTraceEvent         atomic.Uint64
 	notificationMask       TraceEvent
 	notificationChan       chan<- RoundTripTracerStatus
 }
@@ -94,6 +95,12 @@ func NewRoundTripTracer() *RoundTripTracer {
 // bitwise OR of TraceEvent constants (e.g., DNSStart|DNSDone). When a matching event occurs,
 // the current RoundTripTracerStatus is sent to notificationChan.
 //
+// Notifications are sent synchronously, on the goroutine that triggers the event: the HTTP
+// transport for connection and request events, and the caller of the response body's Read and
+// Close methods for body events. Each send blocks until it is received, which stalls the round
+// trip. Either receive from notificationChan concurrently, or give it enough buffer for every
+// notification the round trip can produce.
+//
 // If notificationChan is nil, no notifications are sent but metrics are still collected.
 func NewRoundTripTracerWithNotification(notificationMask TraceEvent, notificationChan chan<- RoundTripTracerStatus) *RoundTripTracer {
 	return &RoundTripTracer{ //nolint:exhaustruct // RoundTripTracer has many fields, but most are optional
@@ -103,27 +110,33 @@ func NewRoundTripTracerWithNotification(notificationMask TraceEvent, notificatio
 }
 
 // RoundTripTracerStatus contains the collected metrics and status information from an HTTP
-// round-trip operation. All timing fields are measured from the start of the request.
+// round-trip operation.
+//
+// The timing fields are of two kinds. DNSLookupTime, DialTime and TLSHandshakeTime are the
+// durations of those phases. ConnectionTime, SendTime, FirstByteTime, ReceiveTime and CloseTime
+// are measured from Start, so each one is the time elapsed between Start and the event it names.
 type RoundTripTracerStatus = struct {
-	// Start is the time when the HTTP request operation began
+	// Start is the time when the HTTP client began acquiring a connection for the request (the GetConn event).
 	Start time.Time
-	// DNSLookupTime represents the duration taken to perform DNS lookup
+	// DNSLookupTime is the time spent performing DNS lookups.
 	DNSLookupTime time.Duration
-	// DialTime represents the duration taken to establish a connection to the server
+	// DialTime is the time spent establishing TCP connections to the server.
 	DialTime time.Duration
-	// TLSHandshakeTime represents the duration taken to complete the TLS handshake
+	// TLSHandshakeTime is the time spent performing the TLS handshake.
 	TLSHandshakeTime time.Duration
-	// ConnectionTime represents the duration taken to establish the full connection
+	// ConnectionTime is the time from Start until a connection was obtained (the GotConn event).
 	ConnectionTime time.Duration
-	// SendTime represents the duration taken to send the request to the server
+	// SendTime is the time from Start until the request was written to the connection (the WroteRequest event).
 	SendTime time.Duration
 	// SendError captures any error encountered while writing the request.
 	SendError error
-	// FirstByteTime represents the duration until the first byte of the response is received, measured from the beginning of the request.
+	// FirstByteTime is the time from Start until the first byte of the response was received.
 	FirstByteTime time.Duration
-	// ReceiveTime represents the total duration until the full response body is received, measured from the beginning of the request.
+	// ReceiveTime is the time from Start until the most recent read of the response body, or until the
+	// round-trip error was recorded by TraceRoundTripError.
 	ReceiveTime time.Duration
-	// CloseTime represents the duration until the connection is closed, measured from the beginning of the request.
+	// CloseTime is the time from Start until the response body was closed, or until the round-trip
+	// error was recorded by TraceRoundTripError.
 	CloseTime time.Duration
 	// ResponseBodyBytesRead represents the number of bytes read from the response body.
 	ResponseBodyBytesRead int
@@ -135,6 +148,10 @@ type RoundTripTracerStatus = struct {
 	ResponseBodyReadError error
 	// ResponseBodyCloseError represents an error encountered while closing the response body.
 	ResponseBodyCloseError error
+	// LastTraceEvent is the most recent event recorded by the tracer, or zero if none has occurred.
+	// Events recorded together are combined, e.g. BodyRead|BodyReadEOF for the read that reached
+	// the end of the body. In a notification, it is the event that triggered the notification.
+	LastTraceEvent TraceEvent
 }
 
 // TraceRequest instruments an HTTP request to capture detailed timing and lifecycle metrics.
@@ -318,6 +335,7 @@ func (rtt *RoundTripTracer) Status() RoundTripTracerStatus {
 		RoundTripError:         loadError(&rtt.roundTripError),
 		ResponseBodyReadError:  loadError(&rtt.responseBodyReadError),
 		ResponseBodyCloseError: loadError(&rtt.responseBodyCloseError),
+		LastTraceEvent:         TraceEvent(rtt.lastTraceEvent.Load()),
 	}
 }
 
@@ -343,10 +361,10 @@ func loadError(v *atomic.Value) error {
 }
 
 func (rtt *RoundTripTracer) updateStatusBitsAndNotify(flag TraceEvent) {
-	previous := rtt.statusBits.Or(uint64(flag))
-	updatedBits := previous | uint64(flag)
+	rtt.statusBits.Or(uint64(flag))
+	rtt.lastTraceEvent.Store(uint64(flag))
 
-	if (updatedBits&uint64(rtt.notificationMask)) != 0 && rtt.notificationChan != nil {
+	if flag&rtt.notificationMask != 0 && rtt.notificationChan != nil {
 		rtt.notificationChan <- rtt.Status()
 	}
 }

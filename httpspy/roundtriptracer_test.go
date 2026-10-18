@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -195,6 +196,7 @@ func TestTraceResponse_RecordsStatusCode(t *testing.T) {
 
 	// assert
 	assert.Equal(t, int64(http.StatusCreated), tracer.statusCode.Load())
+	assert.Equal(t, ResponseHeaders, tracer.Status().LastTraceEvent)
 	assert.IsNotNil(t, tracedResponse)
 }
 
@@ -252,6 +254,7 @@ func TestTraceResponse_BodyReadEOFSetsFlag(t *testing.T) {
 	// assert
 	statusBits := TraceEvent(tracer.statusBits.Load())
 	assert.NotEqual(t, TraceEvent(0), statusBits&BodyReadEOF)
+	assert.Equal(t, BodyRead|BodyReadEOF, tracer.Status().LastTraceEvent)
 }
 
 func TestTraceResponse_BodyReadErrorCapturesError(t *testing.T) {
@@ -279,6 +282,7 @@ func TestTraceResponse_BodyReadErrorCapturesError(t *testing.T) {
 	// Verify via status bits that the error was captured
 	statusBits := TraceEvent(tracer.statusBits.Load())
 	assert.NotEqual(t, TraceEvent(0), statusBits&BodyReadError)
+	assert.Equal(t, BodyRead|BodyReadError, tracer.Status().LastTraceEvent)
 }
 
 func TestTraceResponse_BodyCloseRecordsCloseTime(t *testing.T) {
@@ -307,6 +311,7 @@ func TestTraceResponse_BodyCloseRecordsCloseTime(t *testing.T) {
 
 	statusBits := TraceEvent(tracer.statusBits.Load())
 	assert.NotEqual(t, TraceEvent(0), statusBits&BodyClose)
+	assert.Equal(t, BodyClose, tracer.Status().LastTraceEvent)
 }
 
 func TestTraceResponse_BodyCloseErrorCapturesError(t *testing.T) {
@@ -339,6 +344,7 @@ func TestTraceResponse_BodyCloseErrorCapturesError(t *testing.T) {
 
 	statusBits := TraceEvent(tracer.statusBits.Load())
 	assert.NotEqual(t, TraceEvent(0), statusBits&BodyCloseError)
+	assert.Equal(t, BodyClose|BodyCloseError, tracer.Status().LastTraceEvent)
 }
 
 func TestTraceResponse_PreservesOriginalBodyBehavior(t *testing.T) {
@@ -409,6 +415,7 @@ func TestTraceRoundTripError_SetsStatusBit(t *testing.T) {
 	// assert
 	statusBits := TraceEvent(tracer.statusBits.Load())
 	assert.NotEqual(t, TraceEvent(0), statusBits&RoundTripError)
+	assert.Equal(t, RoundTripError, tracer.Status().LastTraceEvent)
 }
 
 func TestTraceRoundTripError_NilError_Panics(t *testing.T) {
@@ -426,6 +433,7 @@ func TestTraceRoundTripError_NilError_Panics(t *testing.T) {
 	// assert
 	assert.Equal(t, any("httpspy.RoundTripTracer.TraceRoundTripError: nil error"), panicVal)
 	assert.Equal(t, TraceEvent(0), TraceEvent(tracer.statusBits.Load()))
+	assert.Equal(t, TraceEvent(0), tracer.Status().LastTraceEvent)
 }
 
 func TestStatus_AfterRoundTripError_ReturnsError(t *testing.T) {
@@ -617,6 +625,7 @@ func TestStatus_AfterFullRoundTrip_ReturnsCompleteStatus(t *testing.T) {
 	assert.Greater(t, status.ReceiveTime, time.Duration(0))
 	assert.Greater(t, status.CloseTime, time.Duration(0))
 	assert.Greater(t, status.ResponseBodyBytesRead, 0)
+	assert.Equal(t, BodyClose, status.LastTraceEvent)
 }
 
 // Group 6: Notification Tests
@@ -641,6 +650,7 @@ func TestNotification_MatchingMaskSendsToChannel(t *testing.T) {
 	select {
 	case status := <-ch:
 		assert.Equal(t, http.StatusOK, status.StatusCode)
+		assert.Equal(t, ResponseHeaders, status.LastTraceEvent)
 	case <-time.After(100 * time.Millisecond):
 		t.Error("expected notification but none received")
 	}
@@ -689,19 +699,19 @@ func TestNotification_MultipleEventsNotify(t *testing.T) {
 	tracedResp.Body.Close() //nolint:errcheck
 
 	// assert
-	notificationCount := 0
+	var events []TraceEvent
 	timeout := time.After(100 * time.Millisecond)
 loop:
 	for {
 		select {
-		case <-ch:
-			notificationCount++
+		case status := <-ch:
+			events = append(events, status.LastTraceEvent)
 		case <-timeout:
 			break loop
 		}
 	}
 
-	assert.GreaterOrEqual(t, notificationCount, 2)
+	assert.EqualFunc(t, []TraceEvent{ResponseHeaders, BodyClose}, events, slices.Equal[[]TraceEvent])
 }
 
 func TestNotification_NilChannelDoesNotPanic(t *testing.T) {
@@ -741,12 +751,71 @@ func TestNotification_StatusContainsCurrentState(t *testing.T) {
 	case status := <-ch:
 		assert.Equal(t, http.StatusTeapot, status.StatusCode)
 		assert.NotEqual(t, time.Time{}, status.Start)
+		assert.Equal(t, ResponseHeaders, status.LastTraceEvent)
 	case <-time.After(100 * time.Millisecond):
 		t.Error("expected notification but none received")
 	}
 }
 
 // Group 7: Status Bits Tests
+
+func TestNotification_OnlyEventsInMaskNotify(t *testing.T) {
+	tests := []struct {
+		name             string
+		notificationMask TraceEvent
+		want             []TraceEvent
+	}{
+		{name: "GetConn", notificationMask: GetConn, want: []TraceEvent{GetConn}},
+		{name: "WroteRequest", notificationMask: WroteRequest, want: []TraceEvent{WroteRequest}},
+		{name: "ResponseHeaders", notificationMask: ResponseHeaders, want: []TraceEvent{ResponseHeaders}},
+		{name: "BodyClose", notificationMask: BodyClose, want: []TraceEvent{BodyClose}},
+		{name: "GetConn and BodyClose", notificationMask: GetConn | BodyClose, want: []TraceEvent{GetConn, BodyClose}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// arrange
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = w.Write([]byte("hello world"))
+			}))
+			t.Cleanup(server.Close)
+
+			// The channel is unbuffered and read on a separate goroutine, as the notification
+			// documentation asks, so every send blocks until the receiver has taken it.
+			notifications := make(chan RoundTripTracerStatus)
+			received := make(chan []TraceEvent)
+			go func() {
+				var events []TraceEvent
+				for status := range notifications {
+					events = append(events, status.LastTraceEvent)
+				}
+				received <- events
+			}()
+
+			tracer := NewRoundTripTracerWithNotification(tt.notificationMask, notifications)
+			req, err := http.NewRequest(http.MethodGet, server.URL, nil)
+			assert.IsNil(t, err)
+
+			// act
+			req = tracer.TraceRequest(req)
+			resp, err := http.DefaultTransport.RoundTrip(req)
+			assert.IsNil(t, err)
+
+			resp = tracer.TraceResponse(resp)
+			_, err = io.ReadAll(resp.Body)
+			assert.IsNil(t, err)
+			assert.IsNil(t, resp.Body.Close())
+
+			// Body.Close is the last event and notifications are sent synchronously, so nothing
+			// else can be sent once it returns.
+			close(notifications)
+			got := <-received
+
+			// assert
+			assert.EqualFunc(t, tt.want, got, slices.Equal[[]TraceEvent])
+		})
+	}
+}
 
 func TestStatusBits_SetCorrectlyForEachEvent(t *testing.T) {
 	events := []TraceEvent{
@@ -768,6 +837,7 @@ func TestStatusBits_SetCorrectlyForEachEvent(t *testing.T) {
 			// assert
 			statusBits := TraceEvent(tracer.statusBits.Load())
 			assert.NotEqual(t, TraceEvent(0), statusBits&event)
+			assert.Equal(t, event, tracer.Status().LastTraceEvent)
 		})
 	}
 }
@@ -786,6 +856,7 @@ func TestStatusBits_MultipleEventsAccumulate(t *testing.T) {
 	assert.NotEqual(t, TraceEvent(0), statusBits&GetConn)
 	assert.NotEqual(t, TraceEvent(0), statusBits&GotConn)
 	assert.NotEqual(t, TraceEvent(0), statusBits&ResponseHeaders)
+	assert.Equal(t, ResponseHeaders, tracer.Status().LastTraceEvent)
 }
 
 func TestStatusBits_CompositeEventsSetsMultipleBits(t *testing.T) {
@@ -799,6 +870,7 @@ func TestStatusBits_CompositeEventsSetsMultipleBits(t *testing.T) {
 	statusBits := TraceEvent(tracer.statusBits.Load())
 	assert.NotEqual(t, TraceEvent(0), statusBits&WroteRequest)
 	assert.NotEqual(t, TraceEvent(0), statusBits&WroteRequestError)
+	assert.Equal(t, WroteRequest|WroteRequestError, tracer.Status().LastTraceEvent)
 }
 
 // Group 8: End-to-End Integration Tests
@@ -839,6 +911,7 @@ func TestRoundTrip_HTTPSuccess_RecordsAllMetrics(t *testing.T) {
 	assert.Greater(t, status.ReceiveTime, time.Duration(0))
 	assert.Greater(t, status.CloseTime, time.Duration(0))
 	assert.Greater(t, status.ResponseBodyBytesRead, 0)
+	assert.Equal(t, BodyClose, status.LastTraceEvent)
 }
 
 func TestRoundTrip_HTTPSSuccess_IncludesTLSMetrics(t *testing.T) {
@@ -893,6 +966,7 @@ func TestRoundTrip_BodyReadError_RecordsError(t *testing.T) {
 	// Verify via status bits that the error was captured
 	statusBits := TraceEvent(tracer.statusBits.Load())
 	assert.NotEqual(t, TraceEvent(0), statusBits&BodyReadError)
+	assert.Equal(t, BodyRead|BodyReadError, tracer.Status().LastTraceEvent)
 }
 
 func TestRoundTrip_ConcurrentUsage_ThreadSafe(t *testing.T) {
@@ -1050,46 +1124,32 @@ func TestTraceRequest_WroteRequestErrorCapturesSendError(t *testing.T) {
 	assert.IsNotNil(t, tracer.sendError.Load())
 }
 
-// Helper for String() method on TraceEvent (for test naming)
+// traceEventNames holds the name of each TraceEvent flag, in bit order.
+var traceEventNames = []string{
+	"GetConn", "GotConn", "DNSStart", "DNSDone",
+	"ConnectStart", "ConnectDone", "TLSHandshakeStart", "TLSHandshakeDone",
+	"WroteRequest", "WroteRequestError", "GotFirstResponseByte", "ResponseHeaders",
+	"RoundTripError", "BodyRead", "BodyReadEOF", "BodyReadError",
+	"BodyClose", "BodyCloseError",
+}
+
+// Helper for String() method on TraceEvent (for test naming and assertion messages).
+// Combined events are printed as their flag names joined by "|", e.g. "BodyRead|BodyReadEOF".
 func (te TraceEvent) String() string {
-	switch te {
-	case GetConn:
-		return "GetConn"
-	case GotConn:
-		return "GotConn"
-	case DNSStart:
-		return "DNSStart"
-	case DNSDone:
-		return "DNSDone"
-	case ConnectStart:
-		return "ConnectStart"
-	case ConnectDone:
-		return "ConnectDone"
-	case TLSHandshakeStart:
-		return "TLSHandshakeStart"
-	case TLSHandshakeDone:
-		return "TLSHandshakeDone"
-	case WroteRequest:
-		return "WroteRequest"
-	case WroteRequestError:
-		return "WroteRequestError"
-	case GotFirstResponseByte:
-		return "GotFirstResponseByte"
-	case ResponseHeaders:
-		return "ResponseHeaders"
-	case RoundTripError:
-		return "RoundTripError"
-	case BodyRead:
-		return "BodyRead"
-	case BodyReadEOF:
-		return "BodyReadEOF"
-	case BodyReadError:
-		return "BodyReadError"
-	case BodyClose:
-		return "BodyClose"
-	case BodyCloseError:
-		return "BodyCloseError"
-	default:
-		return "Unknown"
+	if te == 0 {
+		return "None"
 	}
+
+	var names []string
+	for i, name := range traceEventNames {
+		if te&(1<<i) != 0 {
+			names = append(names, name)
+		}
+	}
+
+	if te>>len(traceEventNames) != 0 {
+		names = append(names, "Unknown")
+	}
+
+	return strings.Join(names, "|")
 }

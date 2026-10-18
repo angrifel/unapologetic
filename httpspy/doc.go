@@ -76,7 +76,8 @@
 //
 // NewRoundTripTracerWithNotification additionally sends a status snapshot to a channel
 // whenever an event in the given TraceEvent mask occurs. Events can be combined with
-// bitwise OR (e.g., DNSStart|DNSDone).
+// bitwise OR (e.g., DNSStart|DNSDone). Notifications are sent synchronously and block until
+// received, so the channel must be read concurrently or be buffered.
 //
 // A RoundTripTracer should be used for only one round trip.
 package httpspy
