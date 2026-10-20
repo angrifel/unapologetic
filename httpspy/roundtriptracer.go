@@ -115,6 +115,18 @@ func NewRoundTripTracerWithNotification(notificationMask TraceEvent, notificatio
 // The timing fields are of two kinds. DNSLookupTime, DialTime and TLSHandshakeTime are the
 // durations of those phases. ConnectionTime, SendTime, FirstByteTime, ReceiveTime and CloseTime
 // are measured from Start, so each one is the time elapsed between Start and the event it names.
+//
+// Timing is only measured for round trips in which the GetConn event occurred. GetConn is fired
+// by net/http's Transport when it begins acquiring a connection for the request, and it is what
+// records Start. When it does not occur, Start and every timing field are zero, while the other
+// fields (status code, bytes read, errors and events) are still recorded. Likely causes are:
+//   - The round trip failed before a connection was requested, e.g. because the URL scheme is
+//     not supported.
+//   - The response was produced without a connection, by a RoundTripper that fires no httptrace
+//     hooks: e.g. http.NewFileTransport, a protocol registered with
+//     [http.Transport.RegisterProtocol], or a RoundTripper that builds or caches responses itself.
+//   - The request was not instrumented with TraceRequest, or its context was replaced after
+//     TraceRequest, which drops the trace.
 type RoundTripTracerStatus = struct {
 	// Start is the time when the HTTP client began acquiring a connection for the request (the GetConn event).
 	Start time.Time
@@ -133,10 +145,10 @@ type RoundTripTracerStatus = struct {
 	// FirstByteTime is the time from Start until the first byte of the response was received.
 	FirstByteTime time.Duration
 	// ReceiveTime is the time from Start until the most recent read of the response body, or until the
-	// round-trip error was recorded by TraceRoundTripError.
+	// round-trip error was recorded by TraceRoundTripError. It is zero if the GetConn event did not occur.
 	ReceiveTime time.Duration
 	// CloseTime is the time from Start until the response body was closed, or until the round-trip
-	// error was recorded by TraceRoundTripError.
+	// error was recorded by TraceRoundTripError. It is zero if the GetConn event did not occur.
 	CloseTime time.Duration
 	// ResponseBodyBytesRead represents the number of bytes read from the response body.
 	ResponseBodyBytesRead int
@@ -238,6 +250,10 @@ func (rtt *RoundTripTracer) TraceRequest(req *http.Request) *http.Request {
 //
 // This method should be called immediately after receiving a response from an HTTP call
 // that was instrumented with TraceRequest.
+//
+// Body read and close times are measured from Start, so they are only recorded if the GetConn
+// event occurred. If the response was produced without a connection (e.g. by
+// http.NewFileTransport), they stay zero; see [RoundTripTracerStatus] for the likely causes.
 func (rtt *RoundTripTracer) TraceResponse(response *http.Response) *http.Response {
 	rtt.statusCode.Store(int64(response.StatusCode))
 	rtt.updateStatusBitsAndNotify(ResponseHeaders)
@@ -250,8 +266,9 @@ func (rtt *RoundTripTracer) TraceResponse(response *http.Response) *http.Respons
 	}{
 		Reader: ioaux.ReaderFunc(func(p []byte) (n int, err error) {
 			n, err = responseBody.Read(p)
-			now := time.Now()
-			rtt.receiveTime.Store(int64(now.Sub(loadValue[time.Time](&rtt.start))))
+			if elapsed, ok := rtt.sinceStart(); ok {
+				rtt.receiveTime.Store(int64(elapsed))
+			}
 			rtt.responseBodyBytesRead.Add(int64(n))
 
 			event := BodyRead
@@ -270,8 +287,9 @@ func (rtt *RoundTripTracer) TraceResponse(response *http.Response) *http.Respons
 		}),
 		Closer: ioaux.CloserFunc(func() (err error) {
 			err = responseBody.Close()
-			now := time.Now()
-			rtt.closeTime.Store(int64(now.Sub(loadValue[time.Time](&rtt.start))))
+			if elapsed, ok := rtt.sinceStart(); ok {
+				rtt.closeTime.Store(int64(elapsed))
+			}
 
 			event := BodyClose
 			if err != nil {
@@ -293,8 +311,10 @@ func (rtt *RoundTripTracer) TraceResponse(response *http.Response) *http.Respons
 // such as connection failures, timeouts, or other transport-level errors.
 //
 // The error is stored and timing fields (ReceiveTime, CloseTime) are set to mark when
-// the error occurred. The RoundTripError status bit is set and notifications are sent
-// if configured.
+// the error occurred. If the GetConn event did not occur, e.g. because the round trip failed
+// before the HTTP client began acquiring a connection (such as for an unsupported URL scheme),
+// ReceiveTime and CloseTime are left at zero; see [RoundTripTracerStatus] for the likely causes.
+// The RoundTripError status bit is set and notifications are sent if configured.
 //
 // TraceRoundTripError panics if err is nil.
 func (rtt *RoundTripTracer) TraceRoundTripError(err error) {
@@ -302,12 +322,13 @@ func (rtt *RoundTripTracer) TraceRoundTripError(err error) {
 		panic("httpspy.RoundTripTracer.TraceRoundTripError: nil error")
 	}
 
-	now := time.Now()
-	start := loadValue[time.Time](&rtt.start)
-
 	rtt.roundTripError.Store(&err)
-	rtt.receiveTime.Store(int64(now.Sub(start)))
-	rtt.closeTime.Store(int64(now.Sub(start)))
+
+	if elapsed, ok := rtt.sinceStart(); ok {
+		rtt.receiveTime.Store(int64(elapsed))
+		rtt.closeTime.Store(int64(elapsed))
+	}
+
 	rtt.updateStatusBitsAndNotify(RoundTripError)
 }
 
@@ -358,6 +379,17 @@ func loadError(v *atomic.Value) error {
 	}
 
 	return nil
+}
+
+// sinceStart returns the time elapsed since Start, and false if the GetConn event has not occurred.
+// Start is recorded by the GetConn event before its status bit is set, so it is only read once the
+// bit is seen; without it there is nothing to measure from.
+func (rtt *RoundTripTracer) sinceStart() (time.Duration, bool) {
+	if TraceEvent(rtt.statusBits.Load())&GetConn == 0 {
+		return 0, false
+	}
+
+	return time.Since(loadValue[time.Time](&rtt.start)), true
 }
 
 func (rtt *RoundTripTracer) updateStatusBitsAndNotify(flag TraceEvent) {

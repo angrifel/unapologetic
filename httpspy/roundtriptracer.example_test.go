@@ -51,7 +51,9 @@ func ExampleNewRoundTripTracerWithNotification() {
 	tracedResp.Body.Close()
 
 	notification := <-ch
+	fmt.Println(notification.LastTraceEvent == httpspy.ResponseHeaders)
 	fmt.Println(notification.StatusCode)
 	// Output:
+	// true
 	// 200
 }

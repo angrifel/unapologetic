@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -347,6 +349,76 @@ func TestTraceResponse_BodyCloseErrorCapturesError(t *testing.T) {
 	assert.Equal(t, BodyClose|BodyCloseError, tracer.Status().LastTraceEvent)
 }
 
+func TestTraceResponse_BodyTimesRequireGetConn(t *testing.T) {
+	tests := []struct {
+		name string
+		// roundTrip returns the transport and URL of an instrumented round trip that succeeds.
+		roundTrip   func(t *testing.T) (http.RoundTripper, string)
+		wantGetConn bool
+	}{
+		{
+			// net/http's Transport acquires a connection, which fires GetConn and records Start.
+			name: "response over a connection",
+			roundTrip: func(t *testing.T) (http.RoundTripper, string) {
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+					_, _ = w.Write([]byte("hello world"))
+				}))
+				t.Cleanup(server.Close)
+
+				return http.DefaultTransport, server.URL
+			},
+			wantGetConn: true,
+		},
+		{
+			// http.NewFileTransport serves the file without a connection and fires no
+			// httptrace hooks, so GetConn never fires and Start is not recorded.
+			name: "response without a connection",
+			roundTrip: func(t *testing.T) (http.RoundTripper, string) {
+				dir := t.TempDir()
+				assert.IsNil(t, os.WriteFile(filepath.Join(dir, "hello.txt"), []byte("hello world"), 0o600))
+
+				return http.NewFileTransport(http.Dir(dir)), "file:///hello.txt"
+			},
+			wantGetConn: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// arrange
+			transport, url := tt.roundTrip(t)
+			tracer := NewRoundTripTracer()
+			req, err := http.NewRequest(http.MethodGet, url, nil)
+			assert.IsNil(t, err)
+
+			req = tracer.TraceRequest(req)
+			resp, err := transport.RoundTrip(req)
+			assert.IsNil(t, err)
+
+			// act
+			resp = tracer.TraceResponse(resp)
+			body, err := io.ReadAll(resp.Body)
+			assert.IsNil(t, err)
+			assert.IsNil(t, resp.Body.Close())
+
+			// assert
+			status := tracer.Status()
+			assert.Equal(t, "hello world", string(body))
+			assert.Equal(t, len(body), status.ResponseBodyBytesRead)
+			assert.Equal(t, tt.wantGetConn, TraceEvent(tracer.statusBits.Load())&GetConn != 0)
+			assert.Equal(t, tt.wantGetConn, !status.Start.IsZero())
+
+			if tt.wantGetConn {
+				assert.Greater(t, status.ReceiveTime, time.Duration(0))
+				assert.GreaterOrEqual(t, status.CloseTime, status.ReceiveTime)
+			} else {
+				assert.Equal(t, time.Duration(0), status.ReceiveTime)
+				assert.Equal(t, time.Duration(0), status.CloseTime)
+			}
+		})
+	}
+}
+
 func TestTraceResponse_PreservesOriginalBodyBehavior(t *testing.T) {
 	// arrange
 	expectedContent := []byte("original content here")
@@ -388,10 +460,11 @@ func TestTraceRoundTripError_StoresError(t *testing.T) {
 }
 
 func TestTraceRoundTripError_SetsReceiveAndCloseTime(t *testing.T) {
-	// arrange
+	// arrange: record Start and the GetConn event, as the GetConn hook does
 	tracer := NewRoundTripTracer()
 	now := time.Now()
 	tracer.start.Store(now)
+	tracer.updateStatusBitsAndNotify(GetConn)
 
 	// act
 	tracer.TraceRoundTripError(errors.New("error"))
@@ -401,6 +474,65 @@ func TestTraceRoundTripError_SetsReceiveAndCloseTime(t *testing.T) {
 	closeTime := time.Duration(tracer.closeTime.Load())
 	assert.GreaterOrEqual(t, receiveTime, time.Duration(0))
 	assert.GreaterOrEqual(t, closeTime, time.Duration(0))
+}
+
+func TestTraceRoundTripError_SetsTimesOnlyAfterStart(t *testing.T) {
+	tests := []struct {
+		name string
+		// url returns the URL of a request whose round trip fails.
+		url       func(t *testing.T) string
+		wantStart bool
+	}{
+		{
+			// The transport rejects the scheme before it starts acquiring a connection,
+			// so GetConn never fires and Start is not recorded.
+			name:      "error before a connection is requested",
+			url:       func(*testing.T) string { return "ftp://127.0.0.1/" },
+			wantStart: false,
+		},
+		{
+			// The listener is closed right away, so dialing it is refused after GetConn fired.
+			name: "error after a connection is requested",
+			url: func(t *testing.T) string {
+				listener, err := net.Listen("tcp", "127.0.0.1:0")
+				assert.IsNil(t, err)
+				address := listener.Addr().String()
+				assert.IsNil(t, listener.Close())
+
+				return "http://" + address
+			},
+			wantStart: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// arrange
+			tracer := NewRoundTripTracer()
+			req, err := http.NewRequest(http.MethodGet, tt.url(t), nil)
+			assert.IsNil(t, err)
+
+			req = tracer.TraceRequest(req)
+			_, roundTripErr := http.DefaultTransport.RoundTrip(req)
+			assert.IsNotNil(t, roundTripErr)
+
+			// act
+			tracer.TraceRoundTripError(roundTripErr)
+
+			// assert
+			status := tracer.Status()
+			assert.Equal(t, roundTripErr, status.RoundTripError)
+			assert.Equal(t, tt.wantStart, !status.Start.IsZero())
+
+			if tt.wantStart {
+				assert.Greater(t, status.ReceiveTime, time.Duration(0))
+				assert.Equal(t, status.ReceiveTime, status.CloseTime)
+			} else {
+				assert.Equal(t, time.Duration(0), status.ReceiveTime)
+				assert.Equal(t, time.Duration(0), status.CloseTime)
+			}
+		})
+	}
 }
 
 func TestTraceRoundTripError_SetsStatusBit(t *testing.T) {

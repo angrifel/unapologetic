@@ -74,6 +74,11 @@
 //	}
 //	status := tracer.Status()
 //
+// Timing is measured from the GetConn event, which net/http's Transport fires when it begins
+// acquiring a connection. Round trips without it, such as a response served by
+// http.NewFileTransport or an error before a connection was requested, report zero for Start
+// and every timing field.
+//
 // NewRoundTripTracerWithNotification additionally sends a status snapshot to a channel
 // whenever an event in the given TraceEvent mask occurs. Events can be combined with
 // bitwise OR (e.g., DNSStart|DNSDone). Notifications are sent synchronously and block until
