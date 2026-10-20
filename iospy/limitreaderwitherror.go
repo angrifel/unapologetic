@@ -29,7 +29,7 @@ func (l *limitedReaderWithError) Read(p []byte) (n int, err error) {
 // Invoking LimitReaderWithError with a nil error will cause this function to panic.
 func LimitReaderWithError(r io.Reader, n int64, err error) io.Reader {
 	if err == nil {
-		panic("err must not be nil")
+		panic("iospy.LimitReaderWithError: nil error")
 	}
 
 	return &limitedReaderWithError{R: r, N: n, E: err}

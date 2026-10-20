@@ -135,9 +135,10 @@ func (s *DNSServer) ListenAndServe(address string) error {
 	return s.Serve(conn)
 }
 
-// Shutdown signals the server to stop, waits for Serve to return, and closes
-// the connection. It returns ctx.Err() if the context expires before the
-// server stops.
+// Shutdown signals the server to stop and returns immediately, without waiting.
+// Serve checks the signal before each read, so it returns nil within one read
+// deadline (100ms). The connection is closed when Serve returns only if it was
+// created by ListenAndServe; a connection passed to Serve is left to the caller.
 func (s *DNSServer) Shutdown() {
 	s.isShutdown.Store(true)
 }

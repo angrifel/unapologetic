@@ -39,7 +39,7 @@ func (l *limitedWriterWithError) Write(p []byte) (n int, err error) {
 // Invoking LimitWriterWithError with a nil error will cause this function to panic.
 func LimitWriterWithError(w io.Writer, n int64, err error) io.Writer {
 	if err == nil {
-		panic("err must not be nil")
+		panic("iospy.LimitWriterWithError: nil error")
 	}
 
 	return &limitedWriterWithError{W: w, N: n, E: err}

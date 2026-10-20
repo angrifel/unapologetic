@@ -17,9 +17,11 @@ func (e *readerWithEOFError) Read(p []byte) (n int, err error) {
 }
 
 // ReaderWithEOFError wraps an io.Reader and replaces the io.EOF error with a custom error.
+//
+// ReaderWithEOFError panics if eofError is nil.
 func ReaderWithEOFError(reader io.Reader, eofError error) io.Reader {
 	if eofError == nil {
-		panic("eofError must not be nil")
+		panic("iospy.ReaderWithEOFError: nil error")
 	}
 
 	return &readerWithEOFError{R: reader, E: eofError}

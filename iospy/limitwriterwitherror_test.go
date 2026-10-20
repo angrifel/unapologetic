@@ -15,9 +15,12 @@ func TestLimitWriterWithError(t *testing.T) {
 		var buf bytes.Buffer
 
 		defer func() {
-			if r := recover(); r == nil {
+			r := recover()
+			if r == nil {
 				t.Fatal("expected panic, but did not panic")
 			}
+
+			assert.Equal(t, any("iospy.LimitWriterWithError: nil error"), r)
 		}()
 
 		LimitWriterWithError(&buf, 5, nil)

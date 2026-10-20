@@ -16,9 +16,12 @@ func TestLimitReaderWithError(t *testing.T) {
 		reader := strings.NewReader("test R")
 
 		defer func() {
-			if r := recover(); r == nil {
+			r := recover()
+			if r == nil {
 				t.Fatal("expected panic, but did not panic")
 			}
+
+			assert.Equal(t, any("iospy.LimitReaderWithError: nil error"), r)
 		}()
 
 		LimitReaderWithError(reader, 5, nil)

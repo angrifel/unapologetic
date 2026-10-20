@@ -14,9 +14,12 @@ func TestReadWithEOFError(t *testing.T) {
 		reader := strings.NewReader("test data")
 
 		defer func() {
-			if r := recover(); r == nil {
+			r := recover()
+			if r == nil {
 				t.Fatal("expected panic, but did not panic")
 			}
+
+			assert.Equal(t, any("iospy.ReaderWithEOFError: nil error"), r)
 		}()
 
 		ReaderWithEOFError(reader, nil)
