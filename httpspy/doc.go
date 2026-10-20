@@ -84,5 +84,8 @@
 // bitwise OR (e.g., DNSStart|DNSDone). Notifications are sent synchronously and block until
 // received, so the channel must be read concurrently or be buffered.
 //
-// A RoundTripTracer should be used for only one round trip.
+// A RoundTripTracer traces a single round trip: one call to the RoundTrip method of an
+// http.RoundTripper. It is not a tracer for http.Client, whose Do method can make several round
+// trips for one request (to follow redirects or to retry) that would all be recorded into the
+// same tracer. Call RoundTrip directly, and use a new RoundTripTracer for each round trip.
 package httpspy

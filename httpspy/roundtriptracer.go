@@ -13,6 +13,15 @@ import (
 
 // TraceEvent represents a specific event that occurs during an HTTP round-trip operation.
 // Events can be combined using bitwise OR to create event masks for selective notification.
+//
+// Events come from three sources:
+//   - The connection and request events, GetConn through GotFirstResponseByte, are reported by
+//     net/http through the httptrace.ClientTrace that TraceRequest attaches to the request. They
+//     only occur when net/http's Transport acquires a connection for the request.
+//   - ResponseHeaders and RoundTripError are recorded by the tracer itself, when TraceResponse
+//     and TraceRoundTripError are called.
+//   - The body events, BodyRead through BodyCloseError, are recorded by the response body that
+//     TraceResponse returns, when its Read and Close methods are called.
 type TraceEvent uint64
 
 const (
@@ -35,22 +44,29 @@ const (
 	// WroteRequest is triggered when the HTTP request has been written to the connection.
 	WroteRequest
 	// WroteRequestError is triggered when an error occurs while writing the request.
+	// It is always recorded together with WroteRequest.
 	WroteRequestError
 	// GotFirstResponseByte is triggered when the first byte of the response is received.
 	GotFirstResponseByte
-	// ResponseHeaders is triggered when response headers have been received.
+	// ResponseHeaders is recorded when TraceResponse is called with the response, whose status
+	// code and headers are then available. It is not reported by net/http, so it occurs even when
+	// the response was produced without a connection.
 	ResponseHeaders
-	// RoundTripError is triggered when an error occurs during the round-trip operation.
+	// RoundTripError is recorded when TraceRoundTripError is called with the error returned by the
+	// round trip. It is not reported by net/http, so it only occurs if TraceRoundTripError is called.
 	RoundTripError
 	// BodyRead is triggered each time data is read from the response body.
 	BodyRead
 	// BodyReadEOF is triggered when EOF is reached while reading the response body.
+	// It is always recorded together with BodyRead.
 	BodyReadEOF
 	// BodyReadError is triggered when an error occurs while reading the response body.
+	// It is always recorded together with BodyRead.
 	BodyReadError
 	// BodyClose is triggered when the response body is closed.
 	BodyClose
 	// BodyCloseError is triggered when an error occurs while closing the response body.
+	// It is always recorded together with BodyClose.
 	BodyCloseError
 )
 
@@ -58,7 +74,14 @@ const (
 // It instruments HTTP requests and responses to capture detailed metrics about connection
 // establishment, data transfer, and lifecycle events.
 //
-// RoundTripTracer should be used only once per round-trip.
+// As its name says, RoundTripTracer traces a single round trip: one call to the RoundTrip method
+// of an [http.RoundTripper], such as [http.Transport]. It is not a tracer for [http.Client].
+// To follow redirects or to retry, http.Client.Do can make several round trips for one request,
+// and since each of them carries the trace that TraceRequest attached, they would all be recorded
+// into the same tracer: events repeat, Start belongs to the first round trip, ConnectionTime,
+// SendTime and FirstByteTime belong to the last one, and DNSLookupTime, DialTime and
+// TLSHandshakeTime add up across all of them. Call RoundTrip directly, and use a new
+// RoundTripTracer for each round trip.
 type RoundTripTracer struct {
 	start                  atomic.Value
 	dnsLookupTime          atomic.Int64
@@ -171,7 +194,8 @@ type RoundTripTracerStatus = struct {
 //
 // The tracer captures metrics for connection establishment (DNS, TCP dial, TLS handshake),
 // request transmission, and response timing. The returned request should be used in place
-// of the original request when making the HTTP call.
+// of the original request when calling the RoundTrip method of an [http.RoundTripper]. See
+// [RoundTripTracer] for why it should not be sent with [http.Client].
 func (rtt *RoundTripTracer) TraceRequest(req *http.Request) *http.Request {
 	var (
 		dnsStartTime          atomic.Pointer[time.Time]

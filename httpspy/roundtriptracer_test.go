@@ -64,7 +64,7 @@ func TestTraceRequest_RecordsStartTime(t *testing.T) {
 
 	// act
 	req = tracer.TraceRequest(req)
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultTransport.RoundTrip(req)
 
 	// assert
 	assert.IsNil(t, err)
@@ -89,7 +89,7 @@ func TestTraceRequest_GotConnSetsConnectionTime(t *testing.T) {
 
 	// act
 	req = tracer.TraceRequest(req)
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultTransport.RoundTrip(req)
 
 	// assert
 	assert.IsNil(t, err)
@@ -112,7 +112,7 @@ func TestTraceRequest_RecordsSendTime(t *testing.T) {
 
 	// act
 	req = tracer.TraceRequest(req)
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultTransport.RoundTrip(req)
 
 	// assert
 	assert.IsNil(t, err)
@@ -136,7 +136,7 @@ func TestTraceRequest_RecordsTimeToFirstByte(t *testing.T) {
 
 	// act
 	req = tracer.TraceRequest(req)
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultTransport.RoundTrip(req)
 
 	// assert
 	assert.IsNil(t, err)
@@ -173,7 +173,7 @@ func TestTraceRequest_RecordsTLSHandshakeTime(t *testing.T) {
 
 	// act
 	req = tracer.TraceRequest(req)
-	resp, err := server.Client().Do(req)
+	resp, err := server.Client().Transport.RoundTrip(req)
 
 	// assert
 	assert.IsNil(t, err)
@@ -215,7 +215,7 @@ func TestTraceResponse_BodyReadRecordsBytesAndTime(t *testing.T) {
 	assert.IsNil(t, err)
 
 	req = tracer.TraceRequest(req)
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultTransport.RoundTrip(req)
 	assert.IsNil(t, err)
 
 	// act
@@ -243,7 +243,7 @@ func TestTraceResponse_BodyReadEOFSetsFlag(t *testing.T) {
 	assert.IsNil(t, err)
 
 	req = tracer.TraceRequest(req)
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultTransport.RoundTrip(req)
 	assert.IsNil(t, err)
 
 	tracedResp := tracer.TraceResponse(resp)
@@ -299,7 +299,7 @@ func TestTraceResponse_BodyCloseRecordsCloseTime(t *testing.T) {
 	assert.IsNil(t, err)
 
 	req = tracer.TraceRequest(req)
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultTransport.RoundTrip(req)
 	assert.IsNil(t, err)
 
 	tracedResp := tracer.TraceResponse(resp)
@@ -699,7 +699,7 @@ func TestStatus_ReturnsAllTimingFields(t *testing.T) {
 	assert.IsNil(t, err)
 
 	req = tracer.TraceRequest(req)
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultTransport.RoundTrip(req)
 	assert.IsNil(t, err)
 
 	tracedResp := tracer.TraceResponse(resp)
@@ -735,7 +735,7 @@ func TestStatus_AfterFullRoundTrip_ReturnsCompleteStatus(t *testing.T) {
 	assert.IsNil(t, err)
 
 	req = tracer.TraceRequest(req)
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultTransport.RoundTrip(req)
 	assert.IsNil(t, err)
 
 	tracedResp := tracer.TraceResponse(resp)
@@ -1022,7 +1022,7 @@ func TestRoundTrip_HTTPSuccess_RecordsAllMetrics(t *testing.T) {
 
 	// act
 	req = tracer.TraceRequest(req)
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultTransport.RoundTrip(req)
 	assert.IsNil(t, err)
 
 	tracedResp := tracer.TraceResponse(resp)
@@ -1060,7 +1060,7 @@ func TestRoundTrip_HTTPSSuccess_IncludesTLSMetrics(t *testing.T) {
 
 	// act
 	req = tracer.TraceRequest(req)
-	resp, err := server.Client().Do(req)
+	resp, err := server.Client().Transport.RoundTrip(req)
 	assert.IsNil(t, err)
 
 	tracedResp := tracer.TraceResponse(resp)
@@ -1123,7 +1123,7 @@ func TestRoundTrip_ConcurrentUsage_ThreadSafe(t *testing.T) {
 			}
 
 			req = tracer.TraceRequest(req)
-			resp, err := http.DefaultClient.Do(req)
+			resp, err := http.DefaultTransport.RoundTrip(req)
 			if err != nil {
 				return
 			}
@@ -1179,14 +1179,13 @@ func TestTraceRequest_DNSCallbacksRecordDNSLookupTime(t *testing.T) {
 		},
 	}
 
-	// Build an HTTP client that uses the custom resolver
+	// Build an HTTP transport that uses the custom resolver
 	transport := &http.Transport{ //nolint:exhaustruct
 		DialContext: (&net.Dialer{ //nolint:exhaustruct
 			Resolver: resolver,
 		}).DialContext,
 	}
-	client := &http.Client{Transport: transport} //nolint:exhaustruct
-	t.Cleanup(client.CloseIdleConnections)
+	t.Cleanup(transport.CloseIdleConnections)
 
 	tracer := NewRoundTripTracer()
 	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://traced.test:%s/", serverPort), nil)
@@ -1194,7 +1193,7 @@ func TestTraceRequest_DNSCallbacksRecordDNSLookupTime(t *testing.T) {
 
 	// act
 	req = tracer.TraceRequest(req)
-	resp, err := client.Do(req)
+	resp, err := transport.RoundTrip(req)
 	assert.IsNil(t, err)
 
 	tracedResp := tracer.TraceResponse(resp)
@@ -1240,7 +1239,7 @@ func TestTraceRequest_WroteRequestErrorCapturesSendError(t *testing.T) {
 
 	// act
 	req = tracer.TraceRequest(req)
-	resp, roundTripErr := http.DefaultClient.Do(req)
+	resp, roundTripErr := http.DefaultTransport.RoundTrip(req)
 	if resp != nil {
 		resp.Body.Close() //nolint:errcheck
 	}
