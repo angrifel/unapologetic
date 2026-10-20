@@ -72,6 +72,12 @@ func censorHeaders(header http.Header, censorHeader []string, censorText string)
 
 	for _, h := range censorHeader {
 		ch := textproto.CanonicalMIMEHeaderKey(h)
+		if _, preserved := preservedHeaders[ch]; preserved {
+			// Already censored through an earlier name (e.g. a duplicate or a different case);
+			// preserving it again would replace the original values with the censored ones.
+			continue
+		}
+
 		if hv, exists := header[ch]; exists {
 			preservedHeaders[ch] = hv
 			header[ch] = slices.Repeat([]string{censorText}, len(hv))

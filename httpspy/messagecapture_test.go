@@ -334,3 +334,83 @@ func TestResponseCaptureWithHeaderCensorshipFunction(t *testing.T) {
 		})
 	}
 }
+
+func TestHeaderCensorshipFunctions_DuplicateHeaderNamesRestoreHeader(t *testing.T) {
+	const (
+		secret     = "Bearer secret"
+		censorText = "*** CENSORED ***"
+	)
+
+	// capture runs one of the capture functions on a message that carries the Authorization header,
+	// and returns the dump and the message's header after the capture.
+	type capture func(t *testing.T, headersToCensor []string) (dump []byte, header http.Header)
+
+	captures := []struct {
+		name    string
+		capture capture
+	}{
+		{
+			name: "RequestCaptureWithHeaderCensorshipFunction",
+			capture: func(t *testing.T, headersToCensor []string) ([]byte, http.Header) {
+				req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.com", nil)
+				req.Header.Set("Authorization", secret)
+				dump, err := RequestCaptureWithHeaderCensorshipFunction(false, headersToCensor, censorText)(req)
+				require.IsNil(t, err)
+
+				return dump, req.Header
+			},
+		},
+		{
+			name: "RequestOutCaptureWithHeaderCensorshipFunction",
+			capture: func(t *testing.T, headersToCensor []string) ([]byte, http.Header) {
+				req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.com", nil)
+				require.IsNil(t, err)
+				req.Header.Set("Authorization", secret)
+				dump, err := RequestOutCaptureWithHeaderCensorshipFunction(false, headersToCensor, censorText)(req)
+				require.IsNil(t, err)
+
+				return dump, req.Header
+			},
+		},
+		{
+			name: "ResponseCaptureWithHeaderCensorshipFunction",
+			capture: func(t *testing.T, headersToCensor []string) ([]byte, http.Header) {
+				resp := &http.Response{ //nolint:exhaustruct
+					StatusCode: http.StatusOK,
+					ProtoMajor: 1,
+					ProtoMinor: 1,
+					Header:     http.Header{},
+					Body:       http.NoBody,
+				}
+				resp.Header.Set("Authorization", secret)
+				dump, err := ResponseCaptureWithHeaderCensorshipFunction(false, headersToCensor, censorText)(resp)
+				require.IsNil(t, err)
+
+				return dump, resp.Header
+			},
+		},
+	}
+
+	headerNames := []struct {
+		name            string
+		headersToCensor []string
+	}{
+		{name: "single name", headersToCensor: []string{"Authorization"}},
+		{name: "exact duplicate", headersToCensor: []string{"Authorization", "Authorization"}},
+		{name: "case variant", headersToCensor: []string{"Authorization", "authorization"}},
+	}
+
+	for _, c := range captures {
+		for _, hn := range headerNames {
+			t.Run(c.name+"/"+hn.name, func(t *testing.T) {
+				// act
+				dump, header := c.capture(t, hn.headersToCensor)
+
+				// assert: the dump is censored and the message keeps its original header
+				assert.Equal(t, false, strings.Contains(string(dump), secret))
+				assert.Equal(t, true, strings.Contains(string(dump), "Authorization: "+censorText))
+				assert.EqualFunc(t, []string{secret}, header.Values("Authorization"), testaux.SliceEqual[string])
+			})
+		}
+	}
+}
