@@ -13,9 +13,9 @@ const smallBufferSize = 64
 // A ReadSeekBuffer is a variable-sized buffer of bytes with [ReadSeekBuffer.Read] and [ReadSeekBuffer.Write] methods.
 // The zero value for ReadSeekBuffer is an empty buffer ready to use.
 // ReadSeekBuffer's implementation is a copy of golang stdlib bytes.Buffer
-// with the addition of a Size, ReadAt, Seek methods from the bytes.Reader.
+// with the addition of the Size, ReadAt, and Seek methods from bytes.Reader.
 // Unlike bytes.Buffer, bytes already read are kept so that Seek and ReadAt can return to them;
-// they are only discarded by [ReadSeekBuffer.Reset] and [ReadSeekBuffer.Truncate].
+// they are only discarded by [ReadSeekBuffer.Reset] (or, equivalently, [ReadSeekBuffer.Truncate](0)).
 type ReadSeekBuffer struct {
 	buf      []byte // contents are the bytes buf[off : len(buf)]
 	off      int    // read at &buf[off], write at &buf[len(buf)]
@@ -45,7 +45,8 @@ func (r *ReadSeekBuffer) ReadAt(b []byte, off int64) (n int, err error) {
 
 // Seek implements the [io.Seeker] interface.
 func (b *ReadSeekBuffer) Seek(offset int64, whence int) (int64, error) {
-	b.lastRead = -1
+	// Seek is not a read, so UnreadByte and UnreadRune must fail until the next read.
+	b.lastRead = opInvalid
 	var abs int64
 	switch whence {
 	case io.SeekStart:
@@ -63,6 +64,10 @@ func (b *ReadSeekBuffer) Seek(offset int64, whence int) (int64, error) {
 	b.off = int(abs)
 	return abs, nil
 }
+
+// readPos returns the read position, capped at the length of the buffer.
+// Seek can move the read position past the end of the buffer, in which case there is nothing to read.
+func (b *ReadSeekBuffer) readPos() int { return min(b.off, len(b.buf)) }
 
 // The readOp constants describe the last action performed on
 // the buffer, so that UnreadRune and UnreadByte can check for
@@ -92,7 +97,7 @@ const maxInt = int(^uint(0) >> 1)
 // only until the next call to a method like [ReadSeekBuffer.Read], [ReadSeekBuffer.Write], [ReadSeekBuffer.Reset], or [ReadSeekBuffer.Truncate]).
 // The slice aliases the buffer content at least until the next buffer modification,
 // so immediate changes to the slice will affect the result of future reads.
-func (b *ReadSeekBuffer) Bytes() []byte { return b.buf[b.off:] }
+func (b *ReadSeekBuffer) Bytes() []byte { return b.buf[b.readPos():] }
 
 // AvailableBuffer returns an empty buffer with b.Available() capacity.
 // This buffer is intended to be appended to and
@@ -109,7 +114,7 @@ func (b *ReadSeekBuffer) String() string {
 		// Special case, useful in debugging.
 		return "<nil>"
 	}
-	return string(b.buf[b.off:])
+	return string(b.buf[b.readPos():])
 }
 
 // empty reports whether the unread portion of the buffer is empty.
@@ -117,7 +122,7 @@ func (b *ReadSeekBuffer) empty() bool { return len(b.buf) <= b.off }
 
 // Len returns the number of bytes of the unread portion of the buffer;
 // b.Len() == len(b.Bytes()).
-func (b *ReadSeekBuffer) Len() int { return len(b.buf) - b.off }
+func (b *ReadSeekBuffer) Len() int { return len(b.buf) - b.readPos() }
 
 // Cap returns the capacity of the buffer's underlying byte slice, that is, the
 // total space allocated for the buffer's data.
@@ -369,7 +374,8 @@ func (b *ReadSeekBuffer) Next(n int) []byte {
 	if n > m {
 		n = m
 	}
-	data := b.buf[b.off : b.off+n]
+	start := b.readPos()
+	data := b.buf[start : start+n]
 	b.off += n
 	if n > 0 {
 		b.lastRead = opRead
@@ -381,6 +387,10 @@ func (b *ReadSeekBuffer) Next(n int) []byte {
 // If no byte is available, it returns error [io.EOF].
 func (b *ReadSeekBuffer) ReadByte() (byte, error) {
 	if b.empty() {
+		// At the end of the buffer no byte is read; io.EOF only signals that. With nothing read,
+		// there is nothing for UnreadByte or UnreadRune to undo. bytes.Buffer gets this from Reset,
+		// which also drops the bytes already read; only the lastRead part of it is kept here.
+		b.lastRead = opInvalid
 		return 0, io.EOF
 	}
 	c := b.buf[b.off]
@@ -396,6 +406,8 @@ func (b *ReadSeekBuffer) ReadByte() (byte, error) {
 // consumes one byte and returns U+FFFD, 1.
 func (b *ReadSeekBuffer) ReadRune() (r rune, size int, err error) {
 	if b.empty() {
+		// See ReadByte: no rune is read at the end of the buffer, so there is nothing to undo.
+		b.lastRead = opInvalid
 		return 0, 0, io.EOF
 	}
 	c := b.buf[b.off]
@@ -459,14 +471,16 @@ func (b *ReadSeekBuffer) ReadBytes(delim byte) (line []byte, err error) {
 
 // readSlice is like ReadBytes but returns a reference to internal buffer data.
 func (b *ReadSeekBuffer) readSlice(delim byte) (line []byte, err error) {
-	i := bytes.IndexByte(b.buf[b.off:], delim)
-	end := b.off + i + 1
+	start := b.readPos()
+	i := bytes.IndexByte(b.buf[start:], delim)
+	end := start + i + 1
 	if i < 0 {
 		end = len(b.buf)
 		err = io.EOF
 	}
-	line = b.buf[b.off:end]
-	b.off = end
+	line = b.buf[start:end]
+	// end is only behind b.off when Seek moved the read position past the end of the buffer.
+	b.off = max(b.off, end)
 	b.lastRead = opRead
 	return line, err
 }

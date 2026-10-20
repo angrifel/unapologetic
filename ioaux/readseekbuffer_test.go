@@ -13,6 +13,8 @@ import (
 	"sync"
 	"testing"
 	"unicode/utf8"
+
+	"github.com/angrifel/unapologetic/internal/assert"
 )
 
 const N = 10000       // make this bigger for a larger (and slower) test
@@ -1043,5 +1045,196 @@ func TestReaderZero(t *testing.T) {
 
 	if n, err := (&ReadSeekBuffer{}).WriteTo(io.Discard); n != 0 || err != nil {
 		t.Errorf("WriteTo: got %d, %v; want 0, nil", n, err)
+	}
+}
+
+// TestReadSeekBuffer_SeekPastEnd checks that the bytes.Buffer methods behave as they do at the end of
+// the buffer, instead of panicking, when Seek has moved the read position past the end of the buffer.
+func TestReadSeekBuffer_SeekPastEnd(t *testing.T) {
+	tests := []struct {
+		name string
+		act  func(b *ReadSeekBuffer) any
+		want any
+	}{
+		{"Len", func(b *ReadSeekBuffer) any { return b.Len() }, 0},
+		{"Bytes", func(b *ReadSeekBuffer) any { return len(b.Bytes()) }, 0},
+		{"String", func(b *ReadSeekBuffer) any { return b.String() }, ""},
+		{"Next", func(b *ReadSeekBuffer) any { return len(b.Next(3)) }, 0},
+		{"Read", func(b *ReadSeekBuffer) any { _, err := b.Read(make([]byte, 3)); return err }, io.EOF},
+		{"ReadByte", func(b *ReadSeekBuffer) any { _, err := b.ReadByte(); return err }, io.EOF},
+		{"ReadRune", func(b *ReadSeekBuffer) any { _, _, err := b.ReadRune(); return err }, io.EOF},
+		{"ReadBytes", func(b *ReadSeekBuffer) any {
+			line, err := b.ReadBytes('\n')
+			return fmt.Sprint(len(line), err)
+		}, fmt.Sprint(0, io.EOF)},
+		{"ReadString", func(b *ReadSeekBuffer) any {
+			line, err := b.ReadString('\n')
+			return fmt.Sprint(line, err)
+		}, fmt.Sprint("", io.EOF)},
+		{"WriteTo", func(b *ReadSeekBuffer) any {
+			var out bytes.Buffer
+			n, err := b.WriteTo(&out)
+			return fmt.Sprint(n, err)
+		}, fmt.Sprint(0, nil)},
+		{"Truncate(0)", func(b *ReadSeekBuffer) any { b.Truncate(0); return b.Size() }, int64(0)},
+		{"position is kept", func(b *ReadSeekBuffer) any {
+			_, _ = b.ReadString('\n')
+			pos, _ := b.Seek(0, io.SeekCurrent)
+			return pos
+		}, int64(6)},
+		{"Write fills up to the position", func(b *ReadSeekBuffer) any {
+			_, _ = b.WriteString("456789")
+			return b.String()
+		}, "6789"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := NewReadSeekBufferString("0123")
+			_, err := b.Seek(6, io.SeekStart)
+			assert.IsNil(t, err)
+
+			assert.Equal(t, tt.want, tt.act(b))
+		})
+	}
+}
+
+func TestReadSeekBuffer_UnreadAfterSeek(t *testing.T) {
+	tests := []struct {
+		name    string
+		act     func(b *ReadSeekBuffer) error
+		wantErr bool
+		wantPos int64
+	}{
+		{
+			name: "UnreadByte right after Seek",
+			act: func(b *ReadSeekBuffer) error {
+				_, _ = b.Seek(2, io.SeekStart)
+				return b.UnreadByte()
+			},
+			wantErr: true,
+			wantPos: 2,
+		},
+		{
+			name: "UnreadByte after Seek past the end",
+			act: func(b *ReadSeekBuffer) error {
+				_, _ = b.Seek(10, io.SeekStart)
+				return b.UnreadByte()
+			},
+			wantErr: true,
+			wantPos: 10,
+		},
+		{
+			name: "UnreadByte after a read followed by Seek",
+			act: func(b *ReadSeekBuffer) error {
+				_, _ = b.ReadByte()
+				_, _ = b.Seek(2, io.SeekStart)
+				return b.UnreadByte()
+			},
+			wantErr: true,
+			wantPos: 2,
+		},
+		{
+			name: "UnreadRune after a ReadRune followed by Seek",
+			act: func(b *ReadSeekBuffer) error {
+				_, _, _ = b.ReadRune()
+				_, _ = b.Seek(2, io.SeekStart)
+				return b.UnreadRune()
+			},
+			wantErr: true,
+			wantPos: 2,
+		},
+		{
+			name: "UnreadByte after Seek followed by a read",
+			act: func(b *ReadSeekBuffer) error {
+				_, _ = b.Seek(1, io.SeekStart)
+				_, _ = b.ReadByte()
+				return b.UnreadByte()
+			},
+			wantErr: false,
+			wantPos: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// arrange
+			b := NewReadSeekBufferString("abc")
+
+			// act
+			err := tt.act(b)
+
+			// assert
+			assert.Equal(t, tt.wantErr, err != nil)
+			pos, seekErr := b.Seek(0, io.SeekCurrent)
+			assert.IsNil(t, seekErr)
+			assert.Equal(t, tt.wantPos, pos)
+		})
+	}
+}
+
+func TestReadSeekBuffer_UnreadAfterEOF(t *testing.T) {
+	type scanner interface {
+		io.ByteScanner
+		io.RuneScanner
+	}
+
+	// Each case runs the same operations on a bytes.Buffer and on a ReadSeekBuffer, and checks that
+	// the unread call fails on both: the read before it is at the end of the buffer, where it reads
+	// nothing and returns io.EOF to signal that, so there is nothing to unread.
+	tests := []struct {
+		name    string
+		content string
+		act     func(r scanner) (readErr, unreadErr error)
+	}{
+		{
+			name:    "UnreadByte after ReadByte at EOF",
+			content: "a",
+			act: func(r scanner) (error, error) {
+				_, _ = r.ReadByte()
+				_, err := r.ReadByte()
+				return err, r.UnreadByte()
+			},
+		},
+		{
+			name:    "UnreadRune after ReadRune at EOF",
+			content: "é",
+			act: func(r scanner) (error, error) {
+				_, _, _ = r.ReadRune()
+				_, _, err := r.ReadRune()
+				return err, r.UnreadRune()
+			},
+		},
+		{
+			name:    "UnreadByte after ReadRune at EOF",
+			content: "é",
+			act: func(r scanner) (error, error) {
+				_, _, _ = r.ReadRune()
+				_, _, err := r.ReadRune()
+				return err, r.UnreadByte()
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// arrange
+			want := bytes.NewBufferString(tt.content)
+			got := NewReadSeekBufferString(tt.content)
+
+			// act
+			wantReadErr, wantUnreadErr := tt.act(want)
+			gotReadErr, gotUnreadErr := tt.act(got)
+
+			// assert
+			assert.Equal(t, io.EOF, wantReadErr)
+			assert.Equal(t, io.EOF, gotReadErr)
+			assert.IsNotNil(t, wantUnreadErr)
+			assert.IsNotNil(t, gotUnreadErr)
+
+			pos, err := got.Seek(0, io.SeekCurrent)
+			assert.IsNil(t, err)
+			assert.Equal(t, int64(len(tt.content)), pos)
+		})
 	}
 }
