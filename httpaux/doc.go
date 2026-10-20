@@ -7,8 +7,9 @@
 //
 // # Response Cloning
 //
-// CloneHTTPResponseWithBody creates a deep copy of an http.Response while replacing
-// the body with a new io.ReadCloser:
+// CloneHTTPResponseWithBody creates a copy of an http.Response with its body replaced by
+// a new io.ReadCloser. All fields are cloned except Request and TLS, which are shared with
+// the original response:
 //
 //	newBody := io.NopCloser(bytes.NewReader(data))
 //	cloned := httpaux.CloneHTTPResponseWithBody(originalResp, newBody)
