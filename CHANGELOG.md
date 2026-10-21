@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.3.0] - 2026-10-21
+
+### Added
+
+- `ioaux` package: `ReadSeekBuffer.Position` — returns the read position without changing the buffer, so a following `UnreadByte` or `UnreadRune` still works
+- `ioaux` package: `ErrSeekPastBytesRead`, `ErrSeekInvalidWhence` and `ErrSeekNegativePosition` — errors returned by the `Seek` method of a `ReadSeekCloser`
+- `httpspy` package: `RoundTripTracerStatus.LastTraceEvent` — the most recent event recorded by the tracer; in a notification, the event that triggered it
+
+### Changed
+
+- `ioaux` package: `ReadSeekCloser` `Seek` now works within the bytes read so far and returns `ErrSeekPastBytesRead` for positions past them, leaving the position unchanged; `io.SeekEnd` is relative to the bytes read so far
+- `httpspy` package: `NewRoundTripTracerWithNotification` now notifies only when the event that occurred is in the notification mask, instead of on every event once any masked event had occurred
+- `httpspy` package: `RoundTripTracer` timing fields, including body read and close times and those set by `TraceRoundTripError`, are now left at zero when the `GetConn` event did not occur, instead of being measured from a zero start time
+- `httpspy` package: `TraceRoundTripError` now panics if the error is nil
+- `iospy` package: panic messages for a nil error in `ReaderWithEOFError`, `LimitReaderWithError` and `LimitWriterWithError` now name the function (e.g. `iospy.LimitReaderWithError: nil error`)
+- Package documentation updated for `httpaux`, `httpspy`, `ioaux`, `iospy` and the root package to cover all public APIs, lazy buffering in `BufferResponseBody` and `ReadSeekCloser`, and `RoundTripTracer` usage with `http.RoundTripper` rather than `http.Client`
+- `httpaux` package: `CloneHTTPResponseWithBody` documentation no longer describes the copy as deep; `Request` and `TLS` are shared with the original response
+- `httpaux` package: `RoundTripperFunc` parameter renamed from `tereq` to `req`
+
+### Fixed
+
+- `httpspy` package: `RoundTripTracer.Status` no longer panics after a send, round-trip, body read or body close error has been recorded
+- `httpspy` package: header censorship functions no longer leave headers censored after capture when the same header is listed more than once or in different cases
+- `ioaux` package: `ReadSeekCloser` no longer returns bytes from the wrong position when reading after seeking past the bytes read so far
+- `ioaux` package: `ReadSeekBuffer` no longer panics in `Bytes`, `String`, `Next`, `ReadBytes` and `ReadString`, and `Len` no longer returns a negative length, after `Seek` moves the read position past the end of the buffer
+- `ioaux` package: `ReadSeekBuffer` `UnreadByte` and `UnreadRune` now fail after `Seek`, and after `ReadByte` or `ReadRune` return `io.EOF`, as they do in `bytes.Buffer`
+- `Makefile`: `tidy` target added to `.PHONY`
+
 ## [v0.2.2] - 2026-10-16
 
 ### Changed
@@ -75,6 +103,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MIT license
 - README with project overview, Go Reference documentation link, CI status badge, and license badge
 
+[v0.3.0]: https://github.com/angrifel/unapologetic/compare/v0.2.2...v0.3.0
 [v0.2.2]: https://github.com/angrifel/unapologetic/compare/v0.2.1...v0.2.2
 [v0.2.1]: https://github.com/angrifel/unapologetic/compare/v0.2.0...v0.2.1
 [v0.2.0]: https://github.com/angrifel/unapologetic/compare/v0.1.1...v0.2.0
