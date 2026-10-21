@@ -16,7 +16,7 @@ func ExampleReadSeekCloser() {
 	data, _ := io.ReadAll(rsc)
 	fmt.Println(string(data))
 
-	// Seek back to start and read again
+	// Seek back to offset 1 and read again
 	_, _ = rsc.Seek(1, io.SeekStart)
 	data, _ = io.ReadAll(rsc)
 	fmt.Println(string(data))

@@ -13,7 +13,7 @@ const smallBufferSize = 64
 // A ReadSeekBuffer is a variable-sized buffer of bytes with [ReadSeekBuffer.Read] and [ReadSeekBuffer.Write] methods.
 // The zero value for ReadSeekBuffer is an empty buffer ready to use.
 // ReadSeekBuffer's implementation is a copy of golang stdlib bytes.Buffer
-// with the addition of the Size, ReadAt, and Seek methods from bytes.Reader.
+// with the addition of the Size, ReadAt, and Seek methods from bytes.Reader, plus Position.
 // Unlike bytes.Buffer, bytes already read are kept so that Seek and ReadAt can return to them;
 // they are only discarded by [ReadSeekBuffer.Reset] (or, equivalently, [ReadSeekBuffer.Truncate](0)).
 type ReadSeekBuffer struct {
@@ -64,6 +64,12 @@ func (b *ReadSeekBuffer) Seek(offset int64, whence int) (int64, error) {
 	b.off = int(abs)
 	return abs, nil
 }
+
+// Position returns the read position: the offset from the start of the buffer at which the next read starts.
+// It is the position Seek(0, io.SeekCurrent) returns but, unlike Seek, it does not change the buffer,
+// so a following [ReadSeekBuffer.UnreadByte] or [ReadSeekBuffer.UnreadRune] still works.
+// After a Seek past the end of the buffer, the position is past [ReadSeekBuffer.Size] and there is nothing to read.
+func (b *ReadSeekBuffer) Position() int64 { return int64(b.off) }
 
 // readPos returns the read position, capped at the length of the buffer.
 // Seek can move the read position past the end of the buffer, in which case there is nothing to read.

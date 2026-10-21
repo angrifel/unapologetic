@@ -24,7 +24,7 @@ make run-github-action
 
 - **httpaux** - HTTP utilities: response cloning (`CloneHTTPResponseWithBody`), body buffering (`BufferResponseBody`), and `RoundTripperFunc` adapter for creating `http.RoundTripper` from functions
 - **httpspy** - HTTP message capture for debugging/logging with configurable header censoring and optional body collection, and `RoundTripTracer` for tracing HTTP round trips with connection timing metrics
-- **ioaux** - I/O adapters: `ReaderFunc`/`SeekerFunc`/`CloserFunc` function adapters, `ReadSeekCloser` for adding seek to `io.ReadCloser`, `ReadSeekerWithNopCloser`, and `ReadSeekBuffer` (`bytes.Buffer` + `Seek`/`ReadAt`/`Size`)
+- **ioaux** - I/O adapters: `ReaderFunc`/`SeekerFunc`/`CloserFunc` function adapters, `ReadSeekCloser` for adding seek to `io.ReadCloser`, `ReadSeekerWithNopCloser`, and `ReadSeekBuffer` (`bytes.Buffer` + `Seek`/`ReadAt`/`Size`/`Position`)
 - **iospy** - Testing utilities: witness wrappers (`WitnessReader`, `WitnessCloser`) for recording I/O calls, `ReaderWithEOFError` for custom EOF replacement, `LimitReaderWithError`, `LimitWriterWithError`
 - **internal/assert** - Internal test assertion helpers (for non-critical assertions)
 - **internal/assertfunctions** - Internal shared assertion function implementations used by assert and require

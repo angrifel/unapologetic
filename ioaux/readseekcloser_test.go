@@ -3,7 +3,9 @@ package ioaux
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
+	"slices"
 	"strings"
 	"testing"
 
@@ -212,4 +214,91 @@ func TestReadSeekCloser(t *testing.T) {
 		err = rsc.Close()
 		assert.Equal(t, closeErr, err)
 	})
+}
+
+func TestReadSeekCloser_SeekWithinBytesReadSoFar(t *testing.T) {
+	// readN reads n bytes with io.ReadFull and reports what it got.
+	readN := func(rsc io.ReadSeekCloser, n int) string {
+		buf := make([]byte, n)
+		m, err := io.ReadFull(rsc, buf)
+		return fmt.Sprintf("read %q %v", buf[:m], err)
+	}
+	// seek seeks and reports the resulting position and error.
+	seek := func(rsc io.ReadSeekCloser, offset int64, whence int) string {
+		pos, err := rsc.Seek(offset, whence)
+		return fmt.Sprintf("seek %d %v", pos, err)
+	}
+
+	errSeekPast := ErrSeekPastBytesRead.Error()
+
+	tests := []struct {
+		name            string
+		act             func(rsc io.ReadSeekCloser) []string
+		want            []string
+		wantSourceReads int
+	}{
+		{
+			name: "seeking past the bytes read so far fails and keeps the position",
+			act: func(rsc io.ReadSeekCloser) []string {
+				return []string{seek(rsc, 3, io.SeekStart), readN(rsc, 2), seek(rsc, 0, io.SeekStart), readN(rsc, 1), readN(rsc, 3), seek(rsc, 2, io.SeekStart), readN(rsc, 2), readN(rsc, 2), readN(rsc, 2)}
+			},
+			want:            []string{"seek 0 " + errSeekPast, `read "ab" <nil>`, "seek 0 <nil>", `read "a" <nil>`, `read "bcd" <nil>`, "seek 2 <nil>", `read "cd" <nil>`, `read "ef" <nil>`, `read "" EOF`},
+			wantSourceReads: 4,
+		},
+		{
+			name: "seeking to the end of the bytes read so far continues from the source",
+			act: func(rsc io.ReadSeekCloser) []string {
+				return []string{readN(rsc, 2), seek(rsc, 0, io.SeekStart), seek(rsc, 2, io.SeekStart), readN(rsc, 2)}
+			},
+			want:            []string{`read "ab" <nil>`, "seek 0 <nil>", "seek 2 <nil>", `read "cd" <nil>`},
+			wantSourceReads: 2,
+		},
+		{
+			name: "seeking past the bytes read so far with SeekCurrent fails and keeps the position",
+			act: func(rsc io.ReadSeekCloser) []string {
+				return []string{readN(rsc, 1), seek(rsc, 2, io.SeekCurrent), readN(rsc, 2), seek(rsc, 1, io.SeekStart), readN(rsc, 2)}
+			},
+			want:            []string{`read "a" <nil>`, "seek 0 " + errSeekPast, `read "bc" <nil>`, "seek 1 <nil>", `read "bc" <nil>`},
+			wantSourceReads: 2,
+		},
+		{
+			name: "SeekEnd is relative to the bytes read so far",
+			act: func(rsc io.ReadSeekCloser) []string {
+				return []string{seek(rsc, 0, io.SeekEnd), readN(rsc, 3), seek(rsc, -1, io.SeekEnd), readN(rsc, 1), seek(rsc, 1, io.SeekEnd), readN(rsc, 1)}
+			},
+			want:            []string{"seek 0 <nil>", `read "abc" <nil>`, "seek 2 <nil>", `read "c" <nil>`, "seek 0 " + errSeekPast, `read "d" <nil>`},
+			wantSourceReads: 2,
+		},
+		{
+			name: "seeking to a negative position fails and keeps the position",
+			act: func(rsc io.ReadSeekCloser) []string {
+				return []string{readN(rsc, 2), seek(rsc, -1, io.SeekStart), readN(rsc, 1)}
+			},
+			want:            []string{`read "ab" <nil>`, "seek 0 " + "ioaux.ReadSeekCloser.Seek: negative position", `read "c" <nil>`},
+			wantSourceReads: 2,
+		},
+		{
+			name: "seeking with an invalid whence fails and keeps the position",
+			act: func(rsc io.ReadSeekCloser) []string {
+				return []string{readN(rsc, 2), seek(rsc, 0, 3), readN(rsc, 1)}
+			},
+			want:            []string{`read "ab" <nil>`, "seek 0 " + "ioaux.ReadSeekCloser.Seek: invalid whence", `read "c" <nil>`},
+			wantSourceReads: 2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// arrange
+			source := iospy.WitnessReader(strings.NewReader("abcdef"))
+			rsc := ReadSeekCloser(io.NopCloser(source))
+
+			// act
+			got := tt.act(rsc)
+
+			// assert
+			assert.EqualFunc(t, tt.want, got, slices.Equal[[]string])
+			assert.Equal(t, tt.wantSourceReads, len(source.(iospy.ReaderWitness).ObservedReadCalls()))
+		})
+	}
 }

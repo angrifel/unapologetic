@@ -48,3 +48,17 @@ func ExampleReadSeekBuffer_ReadAt() {
 	// World
 	// Hello, World!
 }
+
+func ExampleReadSeekBuffer_Position() {
+	buf := ioaux.NewReadSeekBufferString("Hello, World!")
+
+	b := make([]byte, 5)
+	buf.Read(b)
+	fmt.Println(buf.Position())
+
+	buf.Seek(7, io.SeekStart)
+	fmt.Println(buf.Position())
+	// Output:
+	// 5
+	// 7
+}

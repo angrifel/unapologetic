@@ -15,6 +15,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/angrifel/unapologetic/internal/assert"
+	"github.com/angrifel/unapologetic/internal/require"
 )
 
 const N = 10000       // make this bigger for a larger (and slower) test
@@ -1235,6 +1236,74 @@ func TestReadSeekBuffer_UnreadAfterEOF(t *testing.T) {
 			pos, err := got.Seek(0, io.SeekCurrent)
 			assert.IsNil(t, err)
 			assert.Equal(t, int64(len(tt.content)), pos)
+		})
+	}
+}
+
+func TestReadSeekBuffer_Position(t *testing.T) {
+	tests := []struct {
+		name string
+		act  func(b *ReadSeekBuffer)
+		want int64
+	}{
+		{"new buffer", func(b *ReadSeekBuffer) {}, 0},
+		{"after Write", func(b *ReadSeekBuffer) { _, _ = b.WriteString("6789") }, 0},
+		{"after Read", func(b *ReadSeekBuffer) { _, _ = b.Read(make([]byte, 3)) }, 3},
+		{"after reading everything", func(b *ReadSeekBuffer) { _, _ = io.ReadAll(b) }, 6},
+		{"after Seek", func(b *ReadSeekBuffer) { _, _ = b.Seek(2, io.SeekStart) }, 2},
+		{"after Seek past the end", func(b *ReadSeekBuffer) { _, _ = b.Seek(4, io.SeekEnd) }, 10},
+		{"after failed Seek", func(b *ReadSeekBuffer) {
+			_, _ = b.Seek(2, io.SeekStart)
+			_, _ = b.Seek(-1, io.SeekStart)
+		}, 2},
+		{"after UnreadByte", func(b *ReadSeekBuffer) {
+			_, _ = b.Read(make([]byte, 3))
+			_ = b.UnreadByte()
+		}, 2},
+		{"after Reset", func(b *ReadSeekBuffer) {
+			_, _ = b.Read(make([]byte, 3))
+			b.Reset()
+		}, 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// arrange
+			b := NewReadSeekBufferString("012345")
+
+			// act
+			tt.act(b)
+
+			// assert
+			assert.Equal(t, tt.want, b.Position())
+		})
+	}
+}
+
+func TestReadSeekBuffer_PositionKeepsUnread(t *testing.T) {
+	tests := []struct {
+		name   string
+		read   func(b *ReadSeekBuffer) error
+		unread func(b *ReadSeekBuffer) error
+	}{
+		{"UnreadByte", func(b *ReadSeekBuffer) error { _, err := b.ReadByte(); return err }, (*ReadSeekBuffer).UnreadByte},
+		{"UnreadRune", func(b *ReadSeekBuffer) error { _, _, err := b.ReadRune(); return err }, (*ReadSeekBuffer).UnreadRune},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// arrange
+			b := NewReadSeekBufferString("012345")
+			require.IsNil(t, tt.read(b))
+
+			// act
+			pos := b.Position()
+			err := tt.unread(b)
+
+			// assert
+			assert.Equal(t, int64(1), pos)
+			assert.IsNil(t, err)
+			assert.Equal(t, int64(0), b.Position())
 		})
 	}
 }

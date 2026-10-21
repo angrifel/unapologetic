@@ -25,6 +25,9 @@
 //	_, _ = buffered.Body.(io.Seeker).Seek(0, io.SeekStart)
 //	// buffered.Body can now be read again
 //
+// Seek works within the bytes read so far: io.SeekEnd is relative to them, and seeking past
+// them returns ioaux.ErrSeekPastBytesRead.
+//
 // The original body is read on demand, not up front, and is closed when the buffered body
 // is closed. Any read or close errors from the original body are returned by the buffered body.
 //
