@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.3.1-errorsaux+20261021-055911-914dabb] - 2026-10-21
+
+### Added
+
+- `errorsaux` package: attaches stack traces to errors so they can be returned, wrapped and logged once while still reporting where the failure occurred
+  - `TraceError` and `TraceResult` — wrap an error with the caller's stack trace (up to 64 frames); return nil for a nil error, and return the error unchanged when any error in its chain already has a `StackTrace() []uintptr` method, so the original stack trace is preserved
+  - `StackTrace` — returns the program counters of the first traced error in an error's chain, or nil
+  - `TracedError` and `TracedErrors` — return the first traced error, or every traced error, in an error's tree, including errors combined with `errors.Join`
+  - `FormatStackTrace` — formats program counters in the layout of Go panics, omitting Go runtime frames
+  - Traced errors keep their message, support `errors.Is`, `errors.As` and `errors.Unwrap`, and print their stack trace when formatted with `%+v`
+- Package documentation and examples for `errorsaux`; the root package documentation now lists `errorsaux`
+
 ## [v0.3.0] - 2026-10-21
 
 ### Added
@@ -103,6 +115,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MIT license
 - README with project overview, Go Reference documentation link, CI status badge, and license badge
 
+[v0.3.1-errorsaux+20261021-055911-914dabb]: https://github.com/angrifel/unapologetic/compare/v0.3.0...v0.3.1-errorsaux+20261021-055911-914dabb
 [v0.3.0]: https://github.com/angrifel/unapologetic/compare/v0.2.2...v0.3.0
 [v0.2.2]: https://github.com/angrifel/unapologetic/compare/v0.2.1...v0.2.2
 [v0.2.1]: https://github.com/angrifel/unapologetic/compare/v0.2.0...v0.2.1
