@@ -4,41 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build Commands
 
-```bash
-# Run all tests with race detection and coverage
-make test
-
-# Run linter (requires Docker)
-make lint
-
-# Tidy go modules
-make tidy
-
-# Run GitHub actions locally (requires act and Docker)
-make run-github-action
-```
+Build, lint and test targets live in `Makefile`; use them rather than raw `go` commands.
 
 ## Architecture
 
-**unapologetic** is a Go utility library (module: `github.com/angrifel/unapologetic`) organized into focused packages that extend the standard library:
+**unapologetic** is a Go library (module: `github.com/angrifel/unapologetic`) organized into focused packages that extend the standard library. See the root `doc.go` for the package list.
 
-- **httpaux** - HTTP utilities: response cloning (`CloneHTTPResponseWithBody`), body buffering (`BufferResponseBody`), and `RoundTripperFunc` adapter for creating `http.RoundTripper` from functions
-- **httpspy** - HTTP message capture for debugging/logging with configurable header censoring and optional body collection, and `RoundTripTracer` for tracing HTTP round trips with connection timing metrics
-- **ioaux** - I/O adapters: `ReaderFunc`/`SeekerFunc`/`CloserFunc` function adapters, `ReadSeekCloser` for adding seek to `io.ReadCloser`, `ReadSeekerWithNopCloser`, and `ReadSeekBuffer` (`bytes.Buffer` + `Seek`/`ReadAt`/`Size`/`Position`)
-- **iospy** - Testing utilities: witness wrappers (`WitnessReader`, `WitnessCloser`) for recording I/O calls, `ReaderWithEOFError` for custom EOF replacement, `LimitReaderWithError`, `LimitWriterWithError`
-- **internal/assert** - Internal test assertion helpers (for non-critical assertions)
-- **internal/assertfunctions** - Internal shared assertion function implementations used by assert and require
-- **internal/ioaux** - Internal I/O adapters: `ReaderFunc`/`SeekerFunc`/`CloserFunc` function adapters (internal counterpart of public ioaux)
-- **internal/require** - Internal test assertion helpers (for critical assertions)
-- **internal/netaux** - Network test utilities: embedded DNS server for resolver testing
-- **internal/testaux** - Internal test utilities
-
-Design principles: composable utilities, preserved error semantics, testability focus.
+Design principles: composable packages, preserved error semantics, testability focus.
 
 ### Style conventions:
 - **Test naming**: Tests follow the pattern `TestFunctionName_ScenarioDescription` (e.g., `TestBuildDNSResponse_MatchingARecord`)
 - **Commit messages**: Use lowercase imperative style (e.g., "add feature", "fix bug", "simplify logic")
-- **Doc comments**: Public symbols use Go-standard doc comments (`// FunctionName does X`)
 
 ### Opportunistic bug and typo reporting:
 When reading files as part of any task, always report bugs and typos found outside the scope of the current task. For each finding, present it as a follow-up prompt at the end of the response using the `AskUserQuestion` tool, with options for corrective actions (e.g., fix it now, fix it later, ignore it).
@@ -54,8 +30,6 @@ When reading files as part of any task, always report bugs and typos found outsi
 ### Documentation:
 Documentation is crucial to enable effective adoption of this code library. Here are some guidelines for writing good documentation:
 
-- **Clear and concise**: Use simple language and avoid jargon. Make sure your documentation is easy to understand for anyone reading it.
-- **Contextual**: Provide enough context for the reader to understand the purpose and usage of the code. Explain how the code fits into the overall system and what it is responsible for.
 - **Package level documentation**: Include a high-level overview of the package's purpose and functionality. 
   - This should be written in doc.go for each public package as well as the doc.go at the root of the repository. 
   - Internal packages (i.e package prefixed with `internal/`) are exempt from this requirement.
@@ -65,14 +39,14 @@ Documentation is crucial to enable effective adoption of this code library. Here
   - Examples should be captured in go code in Example{FunctionName} format.
   - Examples should be as minimal as possible to demonstrate the intended usage.
   - Examples must be written in files named `{filename}.example_test.go`.
-- **Version control**: Keep documentation up-to-date with changes to the codebase. Update documentation whenever you make changes to the code or add new features.
 
 ### Internal dependencies:
 Some internal dependencies MUST NEVER be added to the project. The following is an exhaustive list of dependencies that must NEVER exist, the dependencies will be listed in the form `A -> B`, where `A` is the consuming package and `B` is the consumed package.
 
 **Forbidden dependencies:**
-- `iospy -> ioaux`
-- `httpspy -> httpaux`
+- `iospy -> iox`
+- `iospy -> bytesx`
+- `httpspy -> httpx`
 
 ## Testing Instructions
 

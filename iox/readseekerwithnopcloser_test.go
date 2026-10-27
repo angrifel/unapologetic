@@ -1,4 +1,4 @@
-package ioaux
+package iox
 
 import (
 	"bytes"

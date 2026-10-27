@@ -1,4 +1,4 @@
-package ioaux
+package iox
 
 import (
 	"bytes"
@@ -274,7 +274,7 @@ func TestReadSeekCloser_SeekWithinBytesReadSoFar(t *testing.T) {
 			act: func(rsc io.ReadSeekCloser) []string {
 				return []string{readN(rsc, 2), seek(rsc, -1, io.SeekStart), readN(rsc, 1)}
 			},
-			want:            []string{`read "ab" <nil>`, "seek 0 " + "ioaux.ReadSeekCloser.Seek: negative position", `read "c" <nil>`},
+			want:            []string{`read "ab" <nil>`, "seek 0 " + "iox.ReadSeekCloser.Seek: negative position", `read "c" <nil>`},
 			wantSourceReads: 2,
 		},
 		{
@@ -282,7 +282,7 @@ func TestReadSeekCloser_SeekWithinBytesReadSoFar(t *testing.T) {
 			act: func(rsc io.ReadSeekCloser) []string {
 				return []string{readN(rsc, 2), seek(rsc, 0, 3), readN(rsc, 1)}
 			},
-			want:            []string{`read "ab" <nil>`, "seek 0 " + "ioaux.ReadSeekCloser.Seek: invalid whence", `read "c" <nil>`},
+			want:            []string{`read "ab" <nil>`, "seek 0 " + "iox.ReadSeekCloser.Seek: invalid whence", `read "c" <nil>`},
 			wantSourceReads: 2,
 		},
 	}

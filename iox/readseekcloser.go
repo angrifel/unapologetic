@@ -1,25 +1,27 @@
-package ioaux
+package iox
 
 import (
 	"errors"
 	"io"
+
+	"github.com/angrifel/unapologetic/bytesx"
 )
 
 var _ io.ReadSeekCloser = (*readSeekCloser)(nil)
 
 // ErrSeekPastBytesRead is returned by the Seek method of a [ReadSeekCloser] when the requested
 // position is past the bytes read so far.
-var ErrSeekPastBytesRead = errors.New("ioaux.ReadSeekCloser.Seek: position past the bytes read so far")
+var ErrSeekPastBytesRead = errors.New("iox.ReadSeekCloser.Seek: position past the bytes read so far")
 
 // ErrSeekInvalidWhence is returned by the Seek method of a [ReadSeekCloser] when an invalid whence value is provided.
-var ErrSeekInvalidWhence = errors.New("ioaux.ReadSeekCloser.Seek: invalid whence")
+var ErrSeekInvalidWhence = errors.New("iox.ReadSeekCloser.Seek: invalid whence")
 
 // ErrSeekNegativePosition is returned by the Seek method of a [ReadSeekCloser] when a negative position is provided.
-var ErrSeekNegativePosition = errors.New("ioaux.ReadSeekCloser.Seek: negative position")
+var ErrSeekNegativePosition = errors.New("iox.ReadSeekCloser.Seek: negative position")
 
 type readSeekCloser struct {
 	source io.ReadCloser
-	buf    *ReadSeekBuffer
+	buf    *bytesx.ReadSeekBuffer
 }
 
 func (b *readSeekCloser) Read(p []byte) (n int, err error) {
@@ -82,7 +84,7 @@ func (b *readSeekCloser) Close() error { return b.source.Close() }
 // content of readCloser. Seeking past the bytes read so far returns [ErrSeekPastBytesRead] and leaves
 // the position unchanged. Reading at the end of the bytes read so far continues from readCloser.
 func ReadSeekCloser(readCloser io.ReadCloser) io.ReadSeekCloser {
-	var rsb ReadSeekBuffer
+	var rsb bytesx.ReadSeekBuffer
 
 	return &readSeekCloser{source: readCloser, buf: &rsb}
 }

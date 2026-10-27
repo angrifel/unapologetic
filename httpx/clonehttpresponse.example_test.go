@@ -1,4 +1,4 @@
-package httpaux_test
+package httpx_test
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/angrifel/unapologetic/httpaux"
+	"github.com/angrifel/unapologetic/httpx"
 )
 
 func ExampleCloneHTTPResponseWithBody() {
@@ -17,7 +17,7 @@ func ExampleCloneHTTPResponseWithBody() {
 	}
 
 	newBody := io.NopCloser(strings.NewReader("replaced body"))
-	cloned := httpaux.CloneHTTPResponseWithBody(original, newBody)
+	cloned := httpx.CloneHTTPResponseWithBody(original, newBody)
 
 	body, _ := io.ReadAll(cloned.Body)
 	fmt.Println(cloned.StatusCode)

@@ -1,5 +1,5 @@
 ---
-globs: ["ioaux/**"]
+paths: ["bytesx/**"]
 ---
 
 ## ReadSeekBuffer

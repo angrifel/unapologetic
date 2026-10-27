@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ioaux
+package bytesx
 
 import (
 	"bytes"
@@ -92,7 +92,7 @@ func fillBytes(t *testing.T, testname string, buf *ReadSeekBuffer, s string, n i
 	return s
 }
 
-func TestNewReadSeekableBuffer(t *testing.T) {
+func TestNewReadSeekBuffer(t *testing.T) {
 	buf := NewReadSeekBuffer(testBytes)
 	check(t, "NewBuffer", buf, testString)
 }
@@ -113,7 +113,7 @@ func TestNewBufferShallow(t *testing.T) {
 	check(t, "NewBuffer", &buf, testString)
 }
 
-func TestNewReadSeekableBufferString(t *testing.T) {
+func TestNewReadSeekBufferString(t *testing.T) {
 	buf := NewReadSeekBufferString(testString)
 	check(t, "NewBufferString", buf, testString)
 }
@@ -321,10 +321,10 @@ func TestReadFromNegativeReader(t *testing.T) {
 	defer func() {
 		switch err := recover().(type) {
 		case nil:
-			t.Fatal("ioaux.ReadSeekBuffer.ReadFrom didn't panic")
+			t.Fatal("bytesx.ReadSeekBuffer.ReadFrom didn't panic")
 		case error:
 			// this is the error string of errNegativeRead
-			wantError := "ioaux.ReadSeekBuffer: reader returned negative count from Read"
+			wantError := "bytesx.ReadSeekBuffer: reader returned negative count from Read"
 			if err.Error() != wantError {
 				t.Fatalf("recovered panic: got %v, want %v", err.Error(), wantError)
 			}
@@ -778,7 +778,7 @@ func TestReader(t *testing.T) {
 		{seek: io.SeekStart, off: 0, n: 20, want: "0123456789"},
 		{seek: io.SeekStart, off: 1, n: 1, want: "1"},
 		{seek: io.SeekCurrent, off: 1, wantpos: 3, n: 2, want: "34"},
-		{seek: io.SeekStart, off: -1, seekerr: "ioaux.ReadSeekBuffer.Seek: negative position"},
+		{seek: io.SeekStart, off: -1, seekerr: "bytesx.ReadSeekBuffer.Seek: negative position"},
 		{seek: io.SeekStart, off: 1 << 33, n: 1, wantpos: 1 << 33, readerr: io.EOF},
 		{seek: io.SeekCurrent, off: 1, n: 1, wantpos: 1<<33 + 1, readerr: io.EOF},
 		{seek: io.SeekStart, n: 5, want: "01234"},
@@ -835,7 +835,7 @@ func TestReaderAt(t *testing.T) {
 		{1, 9, "123456789", nil},
 		{11, 10, "", io.EOF},
 		{0, 0, "", nil},
-		{-1, 0, "", "ioaux.ReadSeekBuffer.ReadAt: negative offset"},
+		{-1, 0, "", "bytesx.ReadSeekBuffer.ReadAt: negative offset"},
 	}
 	for i, tt := range tests {
 		b := make([]byte, tt.n)

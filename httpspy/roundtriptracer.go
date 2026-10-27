@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/angrifel/unapologetic/ioaux"
+	"github.com/angrifel/unapologetic/iox"
 )
 
 // TraceEvent represents a specific event that occurs during an HTTP round-trip operation.
@@ -288,7 +288,7 @@ func (rtt *RoundTripTracer) TraceResponse(response *http.Response) *http.Respons
 		io.Reader
 		io.Closer
 	}{
-		Reader: ioaux.ReaderFunc(func(p []byte) (n int, err error) {
+		Reader: iox.ReaderFunc(func(p []byte) (n int, err error) {
 			n, err = responseBody.Read(p)
 			if elapsed, ok := rtt.sinceStart(); ok {
 				rtt.receiveTime.Store(int64(elapsed))
@@ -309,7 +309,7 @@ func (rtt *RoundTripTracer) TraceResponse(response *http.Response) *http.Respons
 
 			return
 		}),
-		Closer: ioaux.CloserFunc(func() (err error) {
+		Closer: iox.CloserFunc(func() (err error) {
 			err = responseBody.Close()
 			if elapsed, ok := rtt.sinceStart(); ok {
 				rtt.closeTime.Store(int64(elapsed))

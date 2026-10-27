@@ -1,4 +1,4 @@
-package httpaux
+package httpx
 
 import (
 	"errors"
@@ -8,8 +8,8 @@ import (
 
 	"github.com/angrifel/unapologetic/internal/assert"
 	"github.com/angrifel/unapologetic/internal/require"
-	"github.com/angrifel/unapologetic/ioaux"
 	"github.com/angrifel/unapologetic/iospy"
+	"github.com/angrifel/unapologetic/iox"
 )
 
 func TestBufferResponse(t *testing.T) {
@@ -128,7 +128,7 @@ func TestBufferResponse(t *testing.T) {
 			originalResponse := recorder.Result()
 			orb := originalResponse.Body
 			cErr := errors.New("close error")
-			errCloser := ioaux.CloserFunc(func() error {
+			errCloser := iox.CloserFunc(func() error {
 				if err := orb.Close(); err != nil {
 					return err
 				}
@@ -188,7 +188,7 @@ func TestBufferResponse(t *testing.T) {
 			errAtEOF := errors.New("read error")
 			orbWithErr := iospy.ReaderWithEOFError(orb, errAtEOF)
 			cErr := errors.New("close error")
-			errCloser := ioaux.CloserFunc(func() error {
+			errCloser := iox.CloserFunc(func() error {
 				if err := orb.Close(); err != nil {
 					return err
 				}

@@ -20,7 +20,7 @@ import (
 
 	"github.com/angrifel/unapologetic/internal/assert"
 	"github.com/angrifel/unapologetic/internal/netaux"
-	"github.com/angrifel/unapologetic/ioaux"
+	"github.com/angrifel/unapologetic/iox"
 )
 
 // Group 1: Constructor Tests
@@ -268,7 +268,7 @@ func TestTraceResponse_BodyReadErrorCapturesError(t *testing.T) {
 	expectedErr := errors.New("read error")
 	response := &http.Response{
 		StatusCode: http.StatusOK,
-		Body: io.NopCloser(ioaux.ReaderFunc(func(_ []byte) (int, error) {
+		Body: io.NopCloser(iox.ReaderFunc(func(_ []byte) (int, error) {
 			return 0, expectedErr
 		})),
 	}
@@ -330,7 +330,7 @@ func TestTraceResponse_BodyCloseErrorCapturesError(t *testing.T) {
 			io.Closer
 		}{
 			Reader: bytes.NewReader([]byte("data")),
-			Closer: ioaux.CloserFunc(func() error {
+			Closer: iox.CloserFunc(func() error {
 				return expectedErr
 			}),
 		},
@@ -620,7 +620,7 @@ func TestTraceResponse_BodyReadErrorsOfDifferentTypes_RecordsReadError(t *testin
 	// types on successive Read calls (e.g., when another layer wraps some of them), so the tracer must
 	// cope with that.
 	//
-	// Rationale for using ioaux.ReaderFunc: a real net/http response body cannot produce this sequence.
+	// Rationale for using iox.ReaderFunc: a real net/http response body cannot produce this sequence.
 	// Once it fails, it returns the same error on every later Read, and its other errors (such as a read
 	// after Close) share the same concrete type (*errors.errorString).
 	tests := []struct {
@@ -641,7 +641,7 @@ func TestTraceResponse_BodyReadErrorsOfDifferentTypes_RecordsReadError(t *testin
 			tracer.start.Store(time.Now())
 			resp := tracer.TraceResponse(&http.Response{
 				StatusCode: http.StatusOK,
-				Body: io.NopCloser(ioaux.ReaderFunc(func(_ []byte) (int, error) {
+				Body: io.NopCloser(iox.ReaderFunc(func(_ []byte) (int, error) {
 					err := readErrs[0]
 					if len(readErrs) > 1 {
 						readErrs = readErrs[1:]
@@ -1083,7 +1083,7 @@ func TestRoundTrip_BodyReadError_RecordsError(t *testing.T) {
 
 	response := &http.Response{
 		StatusCode: http.StatusOK,
-		Body: io.NopCloser(ioaux.ReaderFunc(func(_ []byte) (int, error) {
+		Body: io.NopCloser(iox.ReaderFunc(func(_ []byte) (int, error) {
 			return 0, expectedErr
 		})),
 	}
@@ -1221,14 +1221,14 @@ func TestTraceRequest_WroteRequestErrorCapturesSendError(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	// Rationale for using ioaux.ReaderFunc: Real I/O cannot reliably produce a
+	// Rationale for using iox.ReaderFunc: Real I/O cannot reliably produce a
 	// request-write error without racy timing tricks (e.g., server closing mid-write).
-	// The existing test file already uses ioaux.ReaderFunc for error injection in
+	// The existing test file already uses iox.ReaderFunc for error injection in
 	// body-read tests (lines 260, 742), establishing the pattern. The network path
 	// itself (dial, connect, write headers) is still real I/O; only the request body
 	// reader is synthetic.
 	bodyErr := errors.New("request body read failure")
-	failingBody := ioaux.ReaderFunc(func(_ []byte) (int, error) {
+	failingBody := iox.ReaderFunc(func(_ []byte) (int, error) {
 		return 0, bodyErr
 	})
 

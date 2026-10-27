@@ -1,4 +1,4 @@
-package ioaux
+package bytesx
 
 import (
 	"bytes"
@@ -31,7 +31,7 @@ func (r *ReadSeekBuffer) Size() int64 { return int64(len(r.buf)) }
 func (r *ReadSeekBuffer) ReadAt(b []byte, off int64) (n int, err error) {
 	// cannot modify state - see io.ReaderAt
 	if off < 0 {
-		return 0, errors.New("ioaux.ReadSeekBuffer.ReadAt: negative offset")
+		return 0, errors.New("bytesx.ReadSeekBuffer.ReadAt: negative offset")
 	}
 	if off >= int64(len(r.buf)) {
 		return 0, io.EOF
@@ -56,10 +56,10 @@ func (b *ReadSeekBuffer) Seek(offset int64, whence int) (int64, error) {
 	case io.SeekEnd:
 		abs = int64(len(b.buf)) + offset
 	default:
-		return 0, errors.New("ioaux.ReadSeekBuffer.Seek: invalid whence")
+		return 0, errors.New("bytesx.ReadSeekBuffer.Seek: invalid whence")
 	}
 	if abs < 0 {
-		return 0, errors.New("ioaux.ReadSeekBuffer.Seek: negative position")
+		return 0, errors.New("bytesx.ReadSeekBuffer.Seek: negative position")
 	}
 	b.off = int(abs)
 	return abs, nil
@@ -93,8 +93,8 @@ const (
 )
 
 // ErrTooLarge is passed to panic if memory cannot be allocated to store data in a buffer.
-var ErrTooLarge = errors.New("ioaux.ReadSeekBuffer: too large")
-var errNegativeRead = errors.New("ioaux.ReadSeekBuffer: reader returned negative count from Read")
+var ErrTooLarge = errors.New("bytesx.ReadSeekBuffer: too large")
+var errNegativeRead = errors.New("bytesx.ReadSeekBuffer: reader returned negative count from Read")
 
 const maxInt = int(^uint(0) >> 1)
 
@@ -147,7 +147,7 @@ func (b *ReadSeekBuffer) Truncate(n int) {
 	}
 	b.lastRead = opInvalid
 	if n < 0 || n > b.Len() {
-		panic("ioaux.ReadSeekBuffer: truncation out of range")
+		panic("bytesx.ReadSeekBuffer: truncation out of range")
 	}
 	b.buf = b.buf[:b.off+n]
 }
@@ -201,7 +201,7 @@ func (b *ReadSeekBuffer) grow(n int) int {
 // If the buffer can't grow it will panic with [ErrTooLarge].
 func (b *ReadSeekBuffer) Grow(n int) {
 	if n < 0 {
-		panic("ioaux.ReadSeekBuffer.Grow: negative count")
+		panic("bytesx.ReadSeekBuffer.Grow: negative count")
 	}
 	m := b.grow(n)
 	b.buf = b.buf[:m]
@@ -298,7 +298,7 @@ func (b *ReadSeekBuffer) WriteTo(w io.Writer) (n int64, err error) {
 	if nBytes := b.Len(); nBytes > 0 {
 		m, e := w.Write(b.buf[b.off:])
 		if m > nBytes {
-			panic("ioaux.ReadSeekBuffer.WriteTo: invalid Write count")
+			panic("bytesx.ReadSeekBuffer.WriteTo: invalid Write count")
 		}
 		b.off += m
 		n = int64(m)
@@ -435,7 +435,7 @@ func (b *ReadSeekBuffer) ReadRune() (r rune, size int, err error) {
 // from any read operation.)
 func (b *ReadSeekBuffer) UnreadRune() error {
 	if b.lastRead <= opInvalid {
-		return errors.New("ioaux.ReadSeekBuffer: UnreadRune: previous operation was not a successful ReadRune")
+		return errors.New("bytesx.ReadSeekBuffer: UnreadRune: previous operation was not a successful ReadRune")
 	}
 	if b.off >= int(b.lastRead) {
 		b.off -= int(b.lastRead)
@@ -444,7 +444,7 @@ func (b *ReadSeekBuffer) UnreadRune() error {
 	return nil
 }
 
-var errUnreadByte = errors.New("ioaux.ReadSeekBuffer: UnreadByte: previous operation was not a successful read")
+var errUnreadByte = errors.New("bytesx.ReadSeekBuffer: UnreadByte: previous operation was not a successful read")
 
 // UnreadByte unreads the last byte returned by the most recent successful
 // read operation that read at least one byte. If a write has happened since

@@ -1,7 +1,7 @@
-// Package ioaux provides auxiliary utilities for working with I/O operations.
+// Package iox fills gaps in the standard library's io package.
 //
-// This package extends the standard library's io package with adapters and helper
-// functions that simplify common I/O patterns and provide additional capabilities.
+// It provides function adapters for the io interfaces and wrappers that add seeking or
+// closing to readers that lack them.
 //
 // Key features:
 //   - ReaderFunc: A function adapter that implements io.Reader, allowing functions
@@ -16,7 +16,4 @@
 //     wrapped io.ReadCloser are returned unchanged.
 //   - ReadSeekerWithNopCloser: Wraps an io.ReadSeeker with a no-op Close method,
 //     returning an io.ReadSeekCloser.
-//   - ReadSeekBuffer: A variable-sized read/write buffer that combines bytes.Buffer and
-//     bytes.Reader. It provides the full bytes.Buffer API plus Seek, ReadAt, Size, and Position.
-//     Unlike bytes.Buffer, bytes already read are kept so Seek and ReadAt can return to them.
-package ioaux
+package iox

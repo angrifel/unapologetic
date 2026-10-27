@@ -1,11 +1,11 @@
-package httpaux_test
+package httpx_test
 
 import (
 	"fmt"
 	"io"
 	"net/http/httptest"
 
-	"github.com/angrifel/unapologetic/httpaux"
+	"github.com/angrifel/unapologetic/httpx"
 )
 
 func ExampleBufferResponseBody() {
@@ -13,7 +13,7 @@ func ExampleBufferResponseBody() {
 	recorder.WriteHeader(200)
 	_, _ = recorder.Write([]byte("buffered content"))
 
-	resp := httpaux.BufferResponseBody(recorder.Result())
+	resp := httpx.BufferResponseBody(recorder.Result())
 
 	body, _ := io.ReadAll(resp.Body)
 	fmt.Println(string(body))

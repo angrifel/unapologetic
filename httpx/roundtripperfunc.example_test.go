@@ -1,4 +1,4 @@
-package httpaux_test
+package httpx_test
 
 import (
 	"fmt"
@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/angrifel/unapologetic/httpaux"
+	"github.com/angrifel/unapologetic/httpx"
 )
 
 func ExampleRoundTripperFunc() {
-	rt := httpaux.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
+	rt := httpx.RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Body:       io.NopCloser(strings.NewReader("mock response")),

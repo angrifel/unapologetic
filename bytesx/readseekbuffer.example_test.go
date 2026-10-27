@@ -1,14 +1,14 @@
-package ioaux_test
+package bytesx_test
 
 import (
 	"fmt"
 	"io"
 
-	"github.com/angrifel/unapologetic/ioaux"
+	"github.com/angrifel/unapologetic/bytesx"
 )
 
 func ExampleReadSeekBuffer() {
-	var buf ioaux.ReadSeekBuffer
+	var buf bytesx.ReadSeekBuffer
 	buf.WriteString("Hello, World!")
 
 	// Seek to an offset and do a partial read.
@@ -35,7 +35,7 @@ func ExampleReadSeekBuffer() {
 }
 
 func ExampleReadSeekBuffer_ReadAt() {
-	buf := ioaux.NewReadSeekBufferString("Hello, World!")
+	buf := bytesx.NewReadSeekBufferString("Hello, World!")
 
 	b := make([]byte, 5)
 	buf.ReadAt(b, 7)
@@ -50,7 +50,7 @@ func ExampleReadSeekBuffer_ReadAt() {
 }
 
 func ExampleReadSeekBuffer_Position() {
-	buf := ioaux.NewReadSeekBufferString("Hello, World!")
+	buf := bytesx.NewReadSeekBufferString("Hello, World!")
 
 	b := make([]byte, 5)
 	buf.Read(b)

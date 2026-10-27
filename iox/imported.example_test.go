@@ -1,14 +1,14 @@
-package ioaux_test
+package iox_test
 
 import (
 	"fmt"
 	"io"
 
-	"github.com/angrifel/unapologetic/ioaux"
+	"github.com/angrifel/unapologetic/iox"
 )
 
 func ExampleReaderFunc() {
-	reader := ioaux.ReaderFunc(func(p []byte) (int, error) {
+	reader := iox.ReaderFunc(func(p []byte) (int, error) {
 		// your custom io.Reader logic here
 		// Example:
 		return copy(p, "hello"), nil
@@ -22,7 +22,7 @@ func ExampleReaderFunc() {
 }
 
 func ExampleSeekerFunc() {
-	seeker := ioaux.SeekerFunc(func(offset int64, whence int) (int64, error) {
+	seeker := iox.SeekerFunc(func(offset int64, whence int) (int64, error) {
 		// your custom io.Seeker logic here
 		// Example:
 		return offset, nil
@@ -35,7 +35,7 @@ func ExampleSeekerFunc() {
 }
 
 func ExampleCloserFunc() {
-	closer := ioaux.CloserFunc(func() error {
+	closer := iox.CloserFunc(func() error {
 		// your custom io.Closer logic here
 		return nil
 	})
