@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.4.0] - 2026-10-28
+
+### Added
+
+- `errorsx` package: `TraceError` and `TraceResult` — wrap an error with the stack trace of the caller, leaving errors that already carry a stack trace anywhere in their chain unchanged
+- `errorsx` package: `StackTrace`, `TracedError` and `TracedErrors` — return the recorded stack trace, the error carrying it, and every traced error inside joined errors
+- `errorsx` package: `FormatStackTrace` — formats a stack trace using the layout of Go panics; traced errors also print their stack trace with `%+v`
+- `bytesx` package, holding `ReadSeekBuffer` (moved from `ioaux`)
+- `Makefile`: `format` target running `gofmt`
+
+### Changed
+
+- `ioaux` package renamed to `iox`; `ReadSeekBuffer` moved to the new `bytesx` package
+- `httpaux` package renamed to `httpx`
+- Error and panic messages of `ReadSeekBuffer` and `ReadSeekCloser` now use the `bytesx.` and `iox.` prefixes instead of `ioaux.`
+- Root package documentation updated to list the `bytesx`, `errorsx`, `httpx` and `iox` packages
+
 ## [v0.3.0] - 2026-10-21
 
 ### Added
@@ -103,6 +120,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MIT license
 - README with project overview, Go Reference documentation link, CI status badge, and license badge
 
+[v0.4.0]: https://github.com/angrifel/unapologetic/compare/v0.3.0...v0.4.0
 [v0.3.0]: https://github.com/angrifel/unapologetic/compare/v0.2.2...v0.3.0
 [v0.2.2]: https://github.com/angrifel/unapologetic/compare/v0.2.1...v0.2.2
 [v0.2.1]: https://github.com/angrifel/unapologetic/compare/v0.2.0...v0.2.1
