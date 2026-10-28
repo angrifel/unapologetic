@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/angrifel/unapologetic/internal/assert"
-	"github.com/angrifel/unapologetic/internal/testaux"
+	"github.com/angrifel/unapologetic/internal/testx"
 )
 
 func TestCloneHTTPResponseWithSameBody(t *testing.T) {
@@ -51,8 +51,8 @@ func assertCloneHTTPResponseWithBody(t *testing.T, response *http.Response, repl
 	assert.Equal(t, response.Request, clonedResponse.Request)
 	assert.Equal(t, response.TLS, clonedResponse.TLS)
 
-	assert.EqualFunc(t, response.Header, clonedResponse.Header, testaux.HeaderEqual)
-	assert.EqualFunc(t, response.Trailer, clonedResponse.Trailer, testaux.HeaderEqual)
+	assert.EqualFunc(t, response.Header, clonedResponse.Header, testx.HeaderEqual)
+	assert.EqualFunc(t, response.Trailer, clonedResponse.Trailer, testx.HeaderEqual)
 	assert.EqualFunc(t, response.TransferEncoding, clonedResponse.TransferEncoding, slices.Equal)
 
 	assert.Equal(t, replacementBody, clonedResponse.Body)

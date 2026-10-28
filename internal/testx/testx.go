@@ -1,5 +1,5 @@
-// Package testaux provides auxiliary functions for testing.
-package testaux
+// Package testx provides auxiliary functions for testing.
+package testx
 
 import (
 	"context"

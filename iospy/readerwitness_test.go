@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/angrifel/unapologetic/internal/assert"
-	"github.com/angrifel/unapologetic/internal/ioaux"
+	"github.com/angrifel/unapologetic/internal/iox"
 	"github.com/angrifel/unapologetic/internal/require"
 )
 
@@ -50,7 +50,7 @@ func TestReaderWitness(t *testing.T) {
 	t.Run("captures reads with errors", func(t *testing.T) {
 		// arrange
 		expectedErr := errors.New("read error")
-		faultyReader := ioaux.ReaderFunc(func(p []byte) (n int, err error) {
+		faultyReader := iox.ReaderFunc(func(p []byte) (n int, err error) {
 			p[0] = 'a'
 			p[1] = 'b'
 			p[2] = 'c'
@@ -80,7 +80,7 @@ func TestReaderWitness(t *testing.T) {
 	t.Run("captures panics and re-panics", func(t *testing.T) {
 		// arrange
 		expectedPanicVal := "read panic"
-		fakeReader := ioaux.ReaderFunc(func(p []byte) (n int, err error) {
+		fakeReader := iox.ReaderFunc(func(p []byte) (n int, err error) {
 			panic(expectedPanicVal)
 		})
 		rw := WitnessReader(fakeReader).(*readerWitness)

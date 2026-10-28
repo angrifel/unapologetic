@@ -1,4 +1,4 @@
-package testaux
+package testx
 
 import (
 	"errors"

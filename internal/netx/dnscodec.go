@@ -1,4 +1,4 @@
-package netaux
+package netx
 
 import (
 	"encoding/binary"

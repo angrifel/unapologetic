@@ -114,7 +114,7 @@ linters:
     paths:
       - "_test.go"
       - "internal/require/require.go"
-      - "internal/ioaux/funcs.go"
+      - "internal/iox/funcs.go"
       - "internal/assertfunctions/assertfunctions.go"
       - "bytesx/readseekbuffer.go" # Excluded. It is a merge from bytes.Buffer and bytes.Reader with modifications.
   settings:

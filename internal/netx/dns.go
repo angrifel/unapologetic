@@ -1,5 +1,5 @@
-// Package netaux provides auxiliary utilities for working with network operations.
-package netaux
+// Package netx provides auxiliary utilities for working with network operations.
+package netx
 
 import "net/netip"
 

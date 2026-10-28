@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/angrifel/unapologetic/internal/assert"
-	"github.com/angrifel/unapologetic/internal/netaux"
+	"github.com/angrifel/unapologetic/internal/netx"
 	"github.com/angrifel/unapologetic/iox"
 )
 
@@ -1152,13 +1152,13 @@ func TestTraceRequest_DNSCallbacksRecordDNSLookupTime(t *testing.T) {
 	assert.IsNil(t, err)
 
 	// Start a real DNS server that maps "traced.test." → 127.0.0.1
-	dnsRecords := []netaux.DNSRecord{
-		{Name: "traced.test.", Type: netaux.TypeA, Class: netaux.ClassIN, TTL: 300, Addr: netip.MustParseAddr("127.0.0.1")},
+	dnsRecords := []netx.DNSRecord{
+		{Name: "traced.test.", Type: netx.TypeA, Class: netx.ClassIN, TTL: 300, Addr: netip.MustParseAddr("127.0.0.1")},
 	}
 	dnsConn, err := net.ListenPacket("udp", "127.0.0.1:0")
 	assert.IsNil(t, err)
 	dnsAddr := dnsConn.LocalAddr()
-	dnsSrv := &netaux.DNSServer{Records: dnsRecords}
+	dnsSrv := &netx.DNSServer{Records: dnsRecords}
 	dnsDone := make(chan struct{})
 	go func() {
 		defer close(dnsDone)

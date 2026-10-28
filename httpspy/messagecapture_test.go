@@ -11,7 +11,7 @@ import (
 
 	"github.com/angrifel/unapologetic/internal/assert"
 	"github.com/angrifel/unapologetic/internal/require"
-	"github.com/angrifel/unapologetic/internal/testaux"
+	"github.com/angrifel/unapologetic/internal/testx"
 )
 
 //go:embed testmaterial/*
@@ -106,7 +106,7 @@ func TestRequestCaptureWithHeaderCensorshipFunction(t *testing.T) {
 				requestBytes, requestErr := captureFunction(r)
 
 				// assert
-				assert.EqualFunc(t, headersBeforeCapture, r.Header, testaux.HeaderEqual)
+				assert.EqualFunc(t, headersBeforeCapture, r.Header, testx.HeaderEqual)
 				assert.IsNil(t, requestErr)
 				assert.Equal(t, string(expectedBytes), string(requestBytes))
 
@@ -117,7 +117,7 @@ func TestRequestCaptureWithHeaderCensorshipFunction(t *testing.T) {
 
 			host := server.URL[len("http://"):]
 			expectedBytes = bytes.ReplaceAll(expectedBytes, []byte("\r\nHost: example.com\r\n"), []byte("\r\nHost: "+host+"\r\n"))
-			assert.IsNil(t, testaux.WaitForConnectAccept(host))
+			assert.IsNil(t, testx.WaitForConnectAccept(host))
 
 			req := httptest.NewRequestWithContext(t.Context(), tc.req.Method, server.URL, bytes.NewReader(tcBodyBytes))
 			req.RequestURI = ""
@@ -217,7 +217,7 @@ func TestRequestOutCaptureWithHeaderCensorshipFunction(t *testing.T) {
 			requestBytes, requestErr := captureFunction(tc.req)
 
 			// assert
-			assert.EqualFunc(t, headersBeforeCapture, tc.req.Header, testaux.HeaderEqual)
+			assert.EqualFunc(t, headersBeforeCapture, tc.req.Header, testx.HeaderEqual)
 			assert.IsNil(t, requestErr)
 			assert.Equal(t, string(expectedBytes), string(requestBytes))
 		})
@@ -328,7 +328,7 @@ func TestResponseCaptureWithHeaderCensorshipFunction(t *testing.T) {
 			responseBytes, requestErr := captureFunction(tc.resp)
 
 			// assert
-			assert.EqualFunc(t, headersBeforeCapture, tc.resp.Header, testaux.HeaderEqual)
+			assert.EqualFunc(t, headersBeforeCapture, tc.resp.Header, testx.HeaderEqual)
 			assert.IsNil(t, requestErr)
 			assert.Equal(t, string(expectedBytes), string(responseBytes))
 		})
@@ -409,7 +409,7 @@ func TestHeaderCensorshipFunctions_DuplicateHeaderNamesRestoreHeader(t *testing.
 				// assert: the dump is censored and the message keeps its original header
 				assert.Equal(t, false, strings.Contains(string(dump), secret))
 				assert.Equal(t, true, strings.Contains(string(dump), "Authorization: "+censorText))
-				assert.EqualFunc(t, []string{secret}, header.Values("Authorization"), testaux.SliceEqual[string])
+				assert.EqualFunc(t, []string{secret}, header.Values("Authorization"), testx.SliceEqual[string])
 			})
 		}
 	}

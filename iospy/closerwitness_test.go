@@ -5,14 +5,14 @@ import (
 	"testing"
 
 	"github.com/angrifel/unapologetic/internal/assert"
-	"github.com/angrifel/unapologetic/internal/ioaux"
+	"github.com/angrifel/unapologetic/internal/iox"
 	"github.com/angrifel/unapologetic/internal/require"
 )
 
 func TestWitnessCloser(t *testing.T) {
 	t.Run("captures successful close", func(t *testing.T) {
 		// arrange
-		sc := ioaux.CloserFunc(func() error { return nil })
+		sc := iox.CloserFunc(func() error { return nil })
 
 		cw := WitnessCloser(sc).(*closerWitness)
 
@@ -32,7 +32,7 @@ func TestWitnessCloser(t *testing.T) {
 	t.Run("captures close with errors", func(t *testing.T) {
 		// arrange
 		expectedErr := errors.New("read error")
-		faultyCloser := ioaux.CloserFunc(func() error { return expectedErr })
+		faultyCloser := iox.CloserFunc(func() error { return expectedErr })
 
 		cw := WitnessCloser(faultyCloser).(*closerWitness)
 
@@ -51,7 +51,7 @@ func TestWitnessCloser(t *testing.T) {
 	t.Run("captures panics and re-panics", func(t *testing.T) {
 		// arrange
 		expectedPanicVal := "close panic"
-		fakeCloser := ioaux.CloserFunc(func() error {
+		fakeCloser := iox.CloserFunc(func() error {
 			panic(expectedPanicVal)
 		})
 		cw := WitnessCloser(fakeCloser).(*closerWitness)
