@@ -16,12 +16,13 @@
 //
 // # Response Buffering
 //
-// BufferResponseBody replaces the response body with a seekable reader that buffers content
-// in memory as it is read. This is useful when you need to read the body multiple times:
+// BufferResponseBody returns a copy of the response whose body is a seekable reader that buffers
+// content in memory as it is read. This is useful when you need to read the body multiple times.
+// The original response is not modified, but its body should only be read through the copy:
 //
 //	resp, _ := http.Get(url)
 //	buffered := httpx.BufferResponseBody(resp)
-//	data, _ := io.ReadAll(buffered.Body)
+//	_, _ = io.ReadAll(buffered.Body)
 //	_, _ = buffered.Body.(io.Seeker).Seek(0, io.SeekStart)
 //	// buffered.Body can now be read again
 //

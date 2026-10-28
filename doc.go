@@ -17,7 +17,7 @@
 //   - Find every traced error inside joined errors
 //
 // httpx - Fills gaps in the net/http package for responses and round trippers:
-//   - Clone and buffer HTTP response bodies
+//   - Clone HTTP responses with a new body, and buffer response bodies for re-reading
 //   - Create RoundTripper implementations from functions
 //   - Preserve error semantics when manipulating response bodies
 //
