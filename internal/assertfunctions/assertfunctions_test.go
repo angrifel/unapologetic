@@ -38,11 +38,11 @@ func newTestingT(t *testing.T, useFailNow bool) (*testingTSpy, TestingT) {
 
 func TestIsNil(t *testing.T) {
 	tests := []struct {
-		name        string
-		value       any
-		msg         []interface{}
-		wantFail    bool
-		useFailNow  bool
+		name       string
+		value      any
+		msg        []interface{}
+		wantFail   bool
+		useFailNow bool
 	}{
 		{"nil interface", nil, nil, false, false},
 		{"nil pointer", (*int)(nil), nil, false, false},
@@ -82,11 +82,11 @@ func TestIsNil(t *testing.T) {
 
 func TestIsNotNil(t *testing.T) {
 	tests := []struct {
-		name        string
-		value       any
-		msg         []interface{}
-		wantFail    bool
-		useFailNow  bool
+		name       string
+		value      any
+		msg        []interface{}
+		wantFail   bool
+		useFailNow bool
 	}{
 		{"non-nil pointer", new(int), nil, false, false},
 		{"nil interface", nil, nil, true, false},

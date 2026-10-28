@@ -1,4 +1,4 @@
-.PHONY: git-rev-list-last-release-commit git-log-since-last-release check-go check-godoc check-docker check-act install-godoc view-godoc-locally install-git-hooks docker-golangci-lint lint-nocache lint tidy test run-github-action
+.PHONY: git-rev-list-last-release-commit git-log-since-last-release check-go check-godoc check-docker check-act install-godoc view-godoc-locally install-git-hooks docker-golangci-lint lint-nocache format lint tidy test run-github-action
 
 GOLANGCI_LINT_VERSION=v2.3.1
 
@@ -18,6 +18,9 @@ view-godoc-locally: check-godoc
 install-git-hooks:
 	@mkdir -p ./.git/hooks/
 	@cp ./.git-hooks/* ./.git/hooks/
+
+check-gofmt:
+	@command -v gofmt 2>/dev/null 1>&2 || (echo "Error: 'gofmt' not found" && exit 1)
 
 check-go:
 	@command -v go 2>/dev/null 1>&2 || (echo "Error: 'go' not found" && exit 1)
@@ -45,6 +48,9 @@ docker-golangci-lint: check-docker
 
 lint-nocache: tidy docker-golangci-lint
 	@docker run -t --rm -v $(CURDIR):/app -w /app golangci/golangci-lint:$(GOLANGCI_LINT_VERSION) golangci-lint run
+
+format: check-gofmt
+	gofmt -w ./
 
 lint: check-go tidy docker-golangci-lint
 	@mkdir -p $(HOME)/.cache/golangci-lint # creates the cache directory, so it is created with the users permissions and not docker container root user.

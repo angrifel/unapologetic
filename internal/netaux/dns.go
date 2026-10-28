@@ -66,7 +66,7 @@ type DNSMessage struct {
 
 // DNSRecord represents a user-facing DNS record for zone data.
 type DNSRecord struct {
-	Name  string     // FQDN with trailing dot
+	Name  string // FQDN with trailing dot
 	Type  uint16
 	Class uint16
 	TTL   uint32
