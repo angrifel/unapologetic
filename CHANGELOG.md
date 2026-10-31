@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.4.1] - 2026-10-31
+
+### Added
+
+- `install-act.sh` script that builds and installs a pinned version of [`act`](https://github.com/nektos/act) (`v0.2.92`) into the git-ignored `.tools/bin` directory
+- `Makefile`: `install-act` target running `install-act.sh`
+- `Makefile`: `test-cover` target running tests with race detection and coverage
+
+### Changed
+
+- `Makefile`: `test` target no longer reports coverage; use `test-cover` for coverage
+- `Makefile`: `run-github-action` target replaced by `run-github-job-build`, which runs only the `build` job with `act`
+- `Makefile`: `check-act` now looks for `act` at `ACT_PATH` (default `./.tools/bin/act`) instead of `PATH`, and suggests `make install-act` when it is missing
+- GitHub Actions CI workflow now runs tests with `make test`, adding race detection
+- GitHub Actions workflows updated to `actions/checkout@v7` and `actions/setup-go@v7`
+
+### Fixed
+
+- `Makefile`: `check-gofmt` target added to `.PHONY`
+
 ## [v0.4.0] - 2026-10-28
 
 ### Added
@@ -120,6 +140,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MIT license
 - README with project overview, Go Reference documentation link, CI status badge, and license badge
 
+[v0.4.1]: https://github.com/angrifel/unapologetic/compare/v0.4.0...v0.4.1
 [v0.4.0]: https://github.com/angrifel/unapologetic/compare/v0.3.0...v0.4.0
 [v0.3.0]: https://github.com/angrifel/unapologetic/compare/v0.2.2...v0.3.0
 [v0.2.2]: https://github.com/angrifel/unapologetic/compare/v0.2.1...v0.2.2
