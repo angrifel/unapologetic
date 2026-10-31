@@ -18,7 +18,7 @@ jobs:
         os: [ubuntu-22.04, ubuntu-latest] # available images https://github.com/actions/runner-images
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v7
 
     - name: Set up Go
       uses: actions/setup-go@v6
