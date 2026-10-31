@@ -50,7 +50,7 @@ Some internal dependencies MUST NEVER be added to the project. The following is 
 
 ## Testing Instructions
 
-Testing should be performed using the `make test` command, which runs all tests with race detection and coverage. Other methods of running test should be avoided as they are not thorough enough to provide adequate results.
+Testing should be performed using the `make test` command, which runs all tests with race detection, or `make test-cover`, which additionally reports coverage. Other methods of running test should be avoided as they are not thorough enough to provide adequate results.
 
 Directives for writing unit tests:
 - NEVER take dependencies on external libraries.

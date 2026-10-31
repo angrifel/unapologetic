@@ -31,4 +31,4 @@ jobs:
         version: v2.3.1
 
     - name: Test
-      run: go test -v ./...
+      run: make test

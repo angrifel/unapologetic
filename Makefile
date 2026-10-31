@@ -1,6 +1,7 @@
-.PHONY: git-rev-list-last-release-commit git-log-since-last-release check-go check-godoc check-docker check-act install-godoc view-godoc-locally install-git-hooks docker-golangci-lint lint-nocache format lint tidy test run-github-action
+.PHONY: git-rev-list-last-release-commit git-log-since-last-release check-go check-godoc check-docker check-act check-gofmt install-act install-godoc view-godoc-locally install-git-hooks docker-golangci-lint lint-nocache format lint tidy test test-cover run-github-job-build
 
 GOLANGCI_LINT_VERSION=v2.3.1
+ACT_PATH?=./.tools/bin/act
 
 git-rev-list-last-release-commit:
 	./release-management.sh last-release-rev
@@ -32,15 +33,21 @@ check-docker:
 	@command -v docker 2>/dev/null 1>&2 || (echo "Error: 'docker' not found" && exit 1)
 
 check-act:
-	@command -v act 2>/dev/null 1>&2 || (echo "Error: 'act' not found" && exit 1)
+	@command -v $(ACT_PATH) 2>/dev/null 1>&2 || (echo "Error: 'act' not found at '$(ACT_PATH)', run 'make install-act'" && exit 1)
 
-run-github-action: check-docker check-act
-	@act
+install-act:
+	@./install-act.sh
+
+run-github-job-build: check-docker check-act
+	@$(ACT_PATH) -j "build"
 
 tidy: check-go
 	@go mod tidy
 
 test: check-go
+	@go test -v -race ./...
+
+test-cover: check-go
 	@go test -v -race -cover ./...
 
 docker-golangci-lint: check-docker
