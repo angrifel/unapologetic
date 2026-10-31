@@ -7,11 +7,14 @@ import (
 	"reflect"
 )
 
+// TestingTCommon is the subset of testing.TB methods shared by all assertion targets.
 type TestingTCommon = interface {
 	Logf(format string, args ...interface{})
 	Helper()
 }
 
+// TestingT pairs a TestingTCommon with the function invoked when an assertion fails,
+// allowing callers to choose between non-fatal (t.Fail) and fatal (t.FailNow) behavior.
 type TestingT struct {
 	TestingTCommon
 	Fail func()
@@ -107,7 +110,7 @@ func NotEqualFunc[T any](t TestingT, expected, actual T, equalFunc func(a, b T) 
 	}
 }
 
-// Less asserts that the actual value is less than the expected value.
+// Less asserts that the actual value is less than maxValue.
 func Less[T cmp.Ordered](t TestingT, actual, maxValue T, messageAndArgs ...interface{}) {
 	t.Helper()
 
@@ -122,7 +125,7 @@ func Less[T cmp.Ordered](t TestingT, actual, maxValue T, messageAndArgs ...inter
 	}
 }
 
-// LessOrEqual asserts that the actual value is less than or equal to the expected value.
+// LessOrEqual asserts that the actual value is less than or equal to maxValue.
 func LessOrEqual[T cmp.Ordered](t TestingT, actual, maxValue T, messageAndArgs ...interface{}) {
 	t.Helper()
 
@@ -137,7 +140,7 @@ func LessOrEqual[T cmp.Ordered](t TestingT, actual, maxValue T, messageAndArgs .
 	}
 }
 
-// Greater asserts that the actual value is greater than the expected value.
+// Greater asserts that the actual value is greater than minValue.
 func Greater[T cmp.Ordered](t TestingT, actual, minValue T, messageAndArgs ...interface{}) {
 	t.Helper()
 
@@ -152,7 +155,7 @@ func Greater[T cmp.Ordered](t TestingT, actual, minValue T, messageAndArgs ...in
 	}
 }
 
-// GreaterOrEqual asserts that the actual value is greater than or equal to the expected value.
+// GreaterOrEqual asserts that the actual value is greater than or equal to minValue.
 func GreaterOrEqual[T cmp.Ordered](t TestingT, actual, minValue T, messageAndArgs ...interface{}) {
 	t.Helper()
 
@@ -168,12 +171,12 @@ func GreaterOrEqual[T cmp.Ordered](t TestingT, actual, minValue T, messageAndArg
 }
 
 func reflectIsNil(v any) bool {
+	//nolint:exhaustive // the default case handles the non-listed cases as desired
 	switch value := reflect.ValueOf(v); value.Kind() {
 	case
 		reflect.Chan, reflect.Func,
 		reflect.Interface, reflect.Map,
 		reflect.Ptr, reflect.Slice, reflect.UnsafePointer:
-
 		return value.IsNil()
 	default:
 		return false

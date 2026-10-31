@@ -71,6 +71,65 @@ func TestReaderFunc(t *testing.T) {
 	}
 }
 
+func TestSeekerFunc(t *testing.T) {
+	// prepare test cases
+	type testCase struct {
+		result int64
+		resErr error
+		offset int64
+		whence int
+	}
+
+	sfErr := errors.New("seek error")
+	var testCases = []testCase{
+		{
+			result: 0,
+			resErr: nil,
+			offset: 0,
+			whence: io.SeekStart,
+		},
+		{
+			result: 15,
+			resErr: nil,
+			offset: 5,
+			whence: io.SeekCurrent,
+		},
+		{
+			result: 7,
+			resErr: nil,
+			offset: -3,
+			whence: io.SeekEnd,
+		},
+		{
+			result: 0,
+			resErr: sfErr,
+			offset: -1,
+			whence: io.SeekStart,
+		},
+	}
+
+	for tci, tc := range testCases {
+		t.Run(strconv.Itoa(tci), func(t *testing.T) {
+			// arrange
+			var gotOffset int64
+			var gotWhence int
+			sf := SeekerFunc(func(offset int64, whence int) (int64, error) {
+				gotOffset, gotWhence = offset, whence
+				return tc.result, tc.resErr
+			})
+
+			// act
+			pos, err := sf.Seek(tc.offset, tc.whence)
+
+			// assert
+			assert.Equal(t, tc.offset, gotOffset)
+			assert.Equal(t, tc.whence, gotWhence)
+			assert.Equal(t, tc.result, pos)
+			assert.Equal(t, tc.resErr, err)
+		})
+	}
+}
+
 func TestCloserFunc(t *testing.T) {
 	// prepare test cases
 	type testCase struct {

@@ -1,8 +1,11 @@
 package assertfunctions
 
 import (
+	"fmt"
 	"runtime"
+	"strings"
 	"testing"
+	"unsafe"
 )
 
 // testingTSpy wraps *testing.T to capture Logf and Fail calls made by assertion functions.
@@ -19,8 +22,7 @@ func (s *testingTSpy) Logf(format string, args ...interface{}) {
 	s.logCalled = true
 	// We intentionally do NOT call s.T.Logf to avoid polluting test output
 	// with expected assertion failures.
-	_ = format
-	_ = args
+	s.logMessage = fmt.Sprintf(format, args...)
 }
 
 func newTestingT(t *testing.T, useFailNow bool) (*testingTSpy, TestingT) {
@@ -48,9 +50,27 @@ func TestIsNil(t *testing.T) {
 		{"nil pointer", (*int)(nil), nil, false, false},
 		{"non-nil pointer", new(int), nil, true, false},
 		{"non-nil pointer with message", new(int), []interface{}{"val %d", 1}, true, false},
+		// One nil and one non-nil value per nillable kind, plus non-nillable kinds.
+		// reflect.Interface is not represented: a value passed as `any` is always
+		// reported by reflect.ValueOf under its concrete kind.
+		{"nil chan", (chan int)(nil), nil, false, false},
+		{"non-nil chan", make(chan int), nil, true, false},
+		{"nil func", (func())(nil), nil, false, false},
+		{"non-nil func", func() {}, nil, true, false},
+		{"nil map", (map[int]int)(nil), nil, false, false},
+		{"non-nil map", map[int]int{}, nil, true, false},
+		{"nil slice", ([]int)(nil), nil, false, false},
+		{"non-nil slice", []int{}, nil, true, false},
+		{"nil unsafe pointer", unsafe.Pointer(nil), nil, false, false},
+		{"non-nil unsafe pointer", unsafe.Pointer(new(int)), nil, true, false},
+		{"int", 0, nil, true, false},
+		{"string", "", nil, true, false},
+		{"struct", struct{}{}, nil, true, false},
+		{"array", [1]int{}, nil, true, false},
 		{"nil interface/failnow", nil, nil, false, true},
 		{"nil pointer/failnow", (*int)(nil), nil, false, true},
 		{"non-nil pointer/failnow", new(int), nil, true, true},
+		{"int/failnow", 0, nil, true, true},
 		{"non-nil pointer with message/failnow", new(int), []interface{}{"val %d", 1}, true, true},
 	}
 
@@ -92,7 +112,25 @@ func TestIsNotNil(t *testing.T) {
 		{"nil interface", nil, nil, true, false},
 		{"nil pointer", (*int)(nil), nil, true, false},
 		{"nil interface with message", nil, []interface{}{"should not be nil"}, true, false},
+		// One nil and one non-nil value per nillable kind, plus non-nillable kinds.
+		// reflect.Interface is not represented: a value passed as `any` is always
+		// reported by reflect.ValueOf under its concrete kind.
+		{"nil chan", (chan int)(nil), nil, true, false},
+		{"non-nil chan", make(chan int), nil, false, false},
+		{"nil func", (func())(nil), nil, true, false},
+		{"non-nil func", func() {}, nil, false, false},
+		{"nil map", (map[int]int)(nil), nil, true, false},
+		{"non-nil map", map[int]int{}, nil, false, false},
+		{"nil slice", ([]int)(nil), nil, true, false},
+		{"non-nil slice", []int{}, nil, false, false},
+		{"nil unsafe pointer", unsafe.Pointer(nil), nil, true, false},
+		{"non-nil unsafe pointer", unsafe.Pointer(new(int)), nil, false, false},
+		{"int", 0, nil, false, false},
+		{"string", "", nil, false, false},
+		{"struct", struct{}{}, nil, false, false},
+		{"array", [1]int{}, nil, false, false},
 		{"non-nil pointer/failnow", new(int), nil, false, true},
+		{"int/failnow", 0, nil, false, true},
 		{"nil interface/failnow", nil, nil, true, true},
 		{"nil pointer/failnow", (*int)(nil), nil, true, true},
 		{"nil interface with message/failnow", nil, []interface{}{"should not be nil"}, true, true},
@@ -119,6 +157,42 @@ func TestIsNotNil(t *testing.T) {
 			}
 			if reachedAfter != wantReachedAfter {
 				t.Errorf("reachedAfter = %v, want %v", reachedAfter, wantReachedAfter)
+			}
+		})
+	}
+}
+
+func TestMessageAndArgs(t *testing.T) {
+	equal := func(a, b int) bool { return a == b }
+
+	// Every case triggers a failure so the prefix is logged.
+	tests := []struct {
+		name       string
+		assertion  func(tt TestingT, msg ...interface{})
+		msg        []interface{}
+		wantPrefix string
+	}{
+		{"IsNil/no message", func(tt TestingT, msg ...interface{}) { IsNil(tt, 0, msg...) }, nil, "\n"},
+		{"IsNil/format with args", func(tt TestingT, msg ...interface{}) { IsNil(tt, 0, msg...) }, []interface{}{"val %d", 1}, "val 1\n"},
+		{"IsNotNil/message only", func(tt TestingT, msg ...interface{}) { IsNotNil(tt, nil, msg...) }, []interface{}{"plain"}, "plain\n"},
+		{"IsNotNil/non-string message", func(tt TestingT, msg ...interface{}) { IsNotNil(tt, nil, msg...) }, []interface{}{42}, "42\n"},
+		{"Equal", func(tt TestingT, msg ...interface{}) { Equal(tt, 1, 2, msg...) }, []interface{}{"item %d", 0}, "item 0\n"},
+		{"NotEqual", func(tt TestingT, msg ...interface{}) { NotEqual(tt, 1, 1, msg...) }, []interface{}{"item %d", 0}, "item 0\n"},
+		{"EqualFunc", func(tt TestingT, msg ...interface{}) { EqualFunc(tt, 1, 2, equal, msg...) }, []interface{}{"item %d", 0}, "item 0\n"},
+		{"NotEqualFunc", func(tt TestingT, msg ...interface{}) { NotEqualFunc(tt, 1, 1, equal, msg...) }, []interface{}{"item %d", 0}, "item 0\n"},
+		{"Less", func(tt TestingT, msg ...interface{}) { Less(tt, 2, 1, msg...) }, []interface{}{"item %d", 0}, "item 0\n"},
+		{"LessOrEqual", func(tt TestingT, msg ...interface{}) { LessOrEqual(tt, 2, 1, msg...) }, []interface{}{"item %d", 0}, "item 0\n"},
+		{"Greater", func(tt TestingT, msg ...interface{}) { Greater(tt, 1, 2, msg...) }, []interface{}{"item %d", 0}, "item 0\n"},
+		{"GreaterOrEqual", func(tt TestingT, msg ...interface{}) { GreaterOrEqual(tt, 1, 2, msg...) }, []interface{}{"item %d", 0}, "item 0\n"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			spy, tt := newTestingT(t, false)
+			tc.assertion(tt, tc.msg...)
+
+			if !strings.HasPrefix(spy.logMessage, tc.wantPrefix) {
+				t.Errorf("logMessage = %q, want prefix %q", spy.logMessage, tc.wantPrefix)
 			}
 		})
 	}

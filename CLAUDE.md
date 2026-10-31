@@ -66,9 +66,3 @@ Directives for writing unit tests:
 ### Changelog conventions
 
 - Changes to `internal/` packages are never changelog-worthy — they are not importable outside the module and are invisible to consumers.
-
-### Testing exclusions
-
-The following files are exempt from having unit tests:
-- internal/require/require.go
-- internal/assert/assert.go
